@@ -11,8 +11,10 @@ so) or **proposed** (a default picked, awaiting the user).
 - [confirmed] 90s 2D activity-center look, modernized. 2D interface.
 - [confirmed] The place is Sadie's studio, owned by Sadie the cat. Kids are
   in a place, not going through a menu.
-- [confirmed] The activity (painting canvas) must not be a tiny part of the
-  screen. It gets as much as fits.
+- [confirmed] Painting takes the ENTIRE screen, for the most paint area, with
+  the minimum of UI on top: tools are small, tucked at the edges and
+  collapsible, never shrink the canvas, and the way back to the room is
+  unobtrusive. (Replaces the earlier "as much as fits, framed by the easel".)
 - [confirmed] Only painting is real for now; learning activities come later.
 - [confirmed] Mockup look approved: flat side-on cutaway room wider than the
   screen, draggable, doorways to other rooms, tools as objects on shelf edges,
@@ -53,9 +55,20 @@ so) or **proposed** (a default picked, awaiting the user).
   missing questions itself and records answers here. Reason: the user does
   not know what to ask.
 
+- [confirmed] Door, tab and tray stay the size they are now (user tried it and
+  likes it).
+- [confirmed] Saving a painting out: long-press (about 0.65 s) on a hung
+  painting offers it as a PNG. Reason: no menu or button needed.
+- [confirmed] Sadie trills when the page loads and purrs when touched. The
+  trill is a rolled cat "brrrp" (the user said the first version sounded like a
+  game coin).
+- [proposed] Browsers (and the artifact frame) may block sound until a touch.
+  The app tries to trill on load and, if blocked, trills on the first touch, key
+  or click anywhere. Reason: nothing can force audio before a gesture.
+
 ## Technical (all proposed)
 
-- [proposed] Plain web tech, ES modules, canvas, no build step, minimal
+- [proposed] (built) Plain web tech, ES modules, canvas, no build step, minimal
   dependencies. Reason: no session fights tooling; works in any browser.
 - [proposed] Rooms are data files; activities are self-contained modules with
   a tiny open/close/save interface. Reason: adding a room or activity means
@@ -69,10 +82,34 @@ so) or **proposed** (a default picked, awaiting the user).
   human eyes on the result.
 - [proposed] Small PRs; CI runs the tests and screenshots. Reason: easy review
   by the next session.
-- [proposed] Keep the mockup's data format as the starting point for saves
-  (72 x 54 grid, 11 values). Reason: user already likes how it behaves.
+- [proposed] The paint grid is sized to the screen it is opened on (about 54
+  cells on the short side, 11 values per cell as in the mockup), so the paper
+  covers the whole screen in any shape. A painting keeps its own size
+  afterwards. Reason: full-screen paper must not leave bars on phones.
+- [proposed] Paper tools live in a collapsible tray along the bottom edge; a
+  small tab opens it, starting to paint closes it, a faint door top-left leaves.
+  Reason: least UI, usable in portrait and landscape, no handedness bias.
+- [proposed] Saves are version 2: `{ version, activities: { painting: ... } }`
+  under key `sadies-studio`; the mockup's v1 is migrated. See saving.md.
+- [proposed] Objects, pots and tools make small sounds when touched. Nothing
+  plays by itself except Sadie's one trill at the start.
+- [proposed] The PNG save uses a normal download link, or the host's own save
+  (the artifact `downloads` capability) when running as an artifact, where
+  sandboxed pages cannot start downloads.
+- [proposed] A tiny dependency-free bundler (`npm run build`) makes one HTML
+  file for artifacts; source follows three code-style rules it checks. Reason:
+  artifacts are single pages, development stays build-free.
+- [proposed] Pixelify Sans (SIL Open Font License) is hosted in `assets/fonts/`,
+  latin subset, inlined as base64 in the single-file build.
+- [proposed] Playwright is a dev-only tool for smoke and screenshot checks (not
+  shipped); everything else uses Node's built-in test runner. CI in
+  `.github/workflows/check.yml`.
+- [proposed] Hex colors are allowed only in art files; paint, ink and paper
+  come from `src/art/palette.js`. Enforced by a test. Reason: the art code is
+  full of one-off shades that would make a single palette file useless.
 
 ## Open questions
+
 
 - Which learning activity comes first after painting? (Not known yet;
   focus is painting.)

@@ -1,32 +1,41 @@
 # Testing
 
 No human looks at this app between changes, so tests and screenshots are the
-eyes. Proposed, not yet built. Fill in the real commands here and in
-CLAUDE.md when they exist.
+eyes. Run `npm run check` before finishing any change (needs Node 22 and
+Playwright; Chromium is in the cloud environment).
 
 ## Layers
 
-1. **Logic tests.** Saving and loading (including old versions), room data
-   validity, activity interface, painting tools. Fast, no browser.
-2. **Smoke test.** Load the app in a headless browser, tap the easel, paint a
-   stroke, hang it up, reload, confirm it is still there, and confirm no
-   console errors. Every session runs this before finishing.
-3. **Screenshot checks** at three sizes: phone portrait, phone landscape,
-   desktop. A visual regression fails the check.
+1. **Logic tests** (`npm test`, `tests/logic.test.js`, no browser): save codec,
+   every saved-data version loads, storage failures, painting tools and grid
+   math, thumbnails, tray fit, integer scale, camera, room data validity, and
+   the palette rule below.
+2. **Smoke test** (`npm run smoke`): in headless Chromium, load the app, tap
+   the easel, check the paper fills the screen, paint, use the tray, hang it
+   up, leave with Escape, reload and check it survived, flick the room and catch it, long-press a hung
+   painting and get a PNG download, play every sound, check the trill is a roll and when it plays (on load or
+   first touch), and fail on any console
+   error or request to another host. Runs on `index.html` and `dist/index.html`.
+3. **Screenshot checks** (`npm run visual`): room and painting-with-tray at phone
+   portrait, phone landscape and desktop, byte-compared with
+   `tests/visual/baseline/`. The page runs with `?still` (no ambient motion or
+   randomness). After an intended look change, `npm run visual:update` and
+   look at the new images.
 
-A headless Chromium and Playwright are available in the Claude cloud
-environment. Prefer them over adding tooling.
+## Rules that are tests
 
-## Rules that should be tests, not prose
-
-- Every room file validates against the room schema.
-- Every activity exports the required interface.
-- Every saved-data version loads.
-- Colors come from the palette file only.
-- The canvas never fills the whole screen (leaves room for shelves and room).
-- Pixel scale is always an integer.
+- Every room file validates (unique hotspot ids, inside the room, lines exist).
+- Every saved-data version loads (fixtures).
+- Hex colors appear only in art files (`src/art/`, `art.js`, `*-art.js`,
+  `room.js`); everything else uses `src/art/palette.js`.
+- Pixel scale and cell size are always integers; the paper covers the screen.
+- The tray stays a small part of the screen.
 
 ## CI
 
-Proposed: one workflow that runs logic tests, the smoke test and screenshot
-checks on every PR.
+`.github/workflows/check.yml` runs `npm run check` on every PR and uploads
+screenshot diffs if it fails.
+
+## Not covered yet
+
+Real touch devices, Safari and Firefox (Chromium only), sound output.
