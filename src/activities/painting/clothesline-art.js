@@ -53,7 +53,7 @@ export function drawClothesline(paintings, hidden = -1) {
     const cx = centerX(i), ty = lineY(cx) + 2, x0 = cx - 20, s = hangShape(art), fh = s.ph + 4;
     p.r(x0 + 2, ty + 2, 40, fh, '#7ccabe'); p.r(x0, ty, 40, fh, '#cfc3b2'); p.r(x0 + 1, ty + 1, 38, fh - 2, '#ffffff');
     // a rolled painting shows its top; the same cells, a shorter painting
-    const top = s.rolled ? { w: art.w, h: Math.max(1, Math.round((art.h * s.ph) / s.full)), cells: art.cells } : art;
+    const top = s.rolled ? art.top(Math.max(1, Math.round((art.h * s.ph) / s.full))) : art;
     const v = fitted(top, THUMB_W, s.ph);
     for (let y = 0; y < s.ph; y++) for (let x = 0; x < THUMB_W; x++) { const c = v[y * THUMB_W + x]; p.p(x0 + 2 + x, ty + 2 + y, c ? PAINT[c - 1].hex : PAPER); }
     if (s.rolled) drawRoll(p, x0, ty + fh);

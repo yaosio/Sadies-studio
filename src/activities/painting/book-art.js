@@ -3,6 +3,7 @@
 import { Px } from '../../art/px.js';
 import { PAPER, PAINT, PAGE, SHADOW, FRAME } from '../../art/palette.js';
 import { fitRect, resample } from './thumb.js';
+import { paperToCanvas } from './paper-art.js';
 import { mkBookIcon } from '../../ui/chooser-art.js';
 
 const thumbs = new WeakMap(); // painting -> Map('wxh' -> { c, w, h })
@@ -14,7 +15,7 @@ function paintAs(p, w, h, cells) {
 }
 
 // The whole painting, one pixel per cell (used for the flight to the line).
-export const paintingCanvas = (p) => paintAs(p, p.w, p.h, p.cells);
+export const paintingCanvas = (p) => paperToCanvas(p);
 
 // The painting shrunk to fit in a w x h box: { c, x, y, w, h } with x, y the offset inside the box.
 export function thumbFor(p, w, h) {

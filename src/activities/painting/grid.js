@@ -1,7 +1,8 @@
-// The paint grid: pure logic, no drawing. A painting is { w, h, cells } where
+// The paint grid: pure logic, no drawing. A painting is a Paper (paper.js, tiles) where
 // each cell is 0 (bare paper) or 1..10 (PAINT[value - 1], see art/palette.js).
 import { clamp } from '../../art/px.js';
 import { TOOLS } from './tools.js';
+import { Paper } from './paper.js';
 
 // The grid is sized to the screen so the paper fills all of it: about this many
 // cells along the short side, and as many as fit along the long side.
@@ -13,9 +14,9 @@ export const MIN_PAINT_CELL = 3; // smallest cell, in canvas pixels, a view star
 export const MAX_CELL = 32; // closest zoom, in canvas pixels per cell
 
 export function newPainting(w, h) {
-  return { w, h, cells: new Uint8Array(w * h) };
+  return new Paper(w, h);
 }
-export const isBlank = (p) => p.cells.every((v) => v === 0);
+export const isBlank = (p) => p.isBlank();
 
 // Screen size in canvas pixels -> cell size and grid size for a fresh painting.
 export function naturalGrid(W, H) {
@@ -26,11 +27,7 @@ export function naturalGrid(W, H) {
 // The smallest a sheet can be shrunk to, in cells.
 export const MIN_PAPER = 12;
 // The box (x0, y0, x1, y1, inclusive) around all the paint, or null if bare.
-export function paintBounds(p) {
-  let x0 = p.w, y0 = p.h, x1 = -1, y1 = -1;
-  for (let y = 0; y < p.h; y++) for (let x = 0; x < p.w; x++) if (p.cells[y * p.w + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-  return x1 < 0 ? null : { x0, y0, x1, y1 };
-}
+export const paintBounds = (p) => p.bounds();
 // "More paper" and "less paper": add (positive) or cut (negative) bare cells on
 // each side (l, t, r, b), the painting kept where it was. Growth stops at
 // MAX_SIDE; a cut never goes into paint or below MIN_PAPER, so nothing painted
@@ -47,10 +44,7 @@ export function resizeSides(p, l, t, r, b, bounds = paintBounds(p)) {
   if (r > 0) r = Math.min(r, hMax - Math.max(0, l));
   if (t > 0) t = Math.min(t, vMax);
   if (b > 0) b = Math.min(b, vMax - Math.max(0, t));
-  const out = newPainting(p.w + l + r, p.h + t + b);
-  const cl = Math.max(0, -l), cr = Math.max(0, -r), ct = Math.max(0, -t), cb = Math.max(0, -b);
-  for (let y = ct; y < p.h - cb; y++) out.cells.set(p.cells.subarray(y * p.w + cl, (y + 1) * p.w - cr), (y - ct + Math.max(0, t)) * out.w + Math.max(0, l));
-  return { p: out, l, t, r, b };
+  return { p: p.resized(l, t, r, b), l, t, r, b };
 }
 
 // Zoom is smooth: any cell size (canvas pixels per paint cell) between the
@@ -130,8 +124,8 @@ export function stamp(p, cx, cy, toolId, color, rand = Math.random) {
     if (i * i + j * j > r * r + (r === 1 ? 0 : r * 0.6)) continue;
     const x = cx + i, y = cy + j;
     if (x < 0 || y < 0 || x >= p.w || y >= p.h) continue;
-    if (t.erase) p.cells[y * p.w + x] = 0;
-    else if (t.chance >= 1 || rand() < t.chance) p.cells[y * p.w + x] = color + 1;
+    if (t.erase) p.set(x, y, 0);
+    else if (t.chance >= 1 || rand() < t.chance) p.set(x, y, color + 1);
   }
 }
 
@@ -158,7 +152,7 @@ export function putStamp(p, art, cx, cy) {
   for (let j = 0; j < art.h; j++) {
     for (let i = 0; i < art.w; i++) {
       const v = art.cells[j * art.w + i], x = x0 + i, y = y0 + j;
-      if (v && x >= 0 && y >= 0 && x < p.w && y < p.h) p.cells[y * p.w + x] = v;
+      if (v) p.set(x, y, v);
     }
   }
 }

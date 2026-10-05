@@ -7,7 +7,7 @@ import { encodeCells, decodeCells, encodePainting, decodePainting } from '../src
 import { migrate, emptySave, CURRENT_VERSION } from '../src/save/migrate.js';
 import { createStore, openStore, KEY } from '../src/save/store.js';
 import { newPainting, isBlank, naturalGrid, placeGrid, stamp, putStamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, peekTabs, MAX_CELL, wallOver } from '../src/activities/painting/grid.js';
-import { packSnapshot, unpackSnapshot } from '../src/activities/painting/undo.js';
+import { Paper, TILE } from '../src/activities/painting/paper.js';
 import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
 import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
 import { layoutTray, ITEM_IDS, DRAWER_IDS, itemsFor } from '../src/activities/painting/tray.js';
@@ -30,8 +30,8 @@ test('codec round-trips and compresses runs', () => {
   const cells = Uint8Array.from([0, 0, 0, 5, 10, 10, 1]);
   assert.equal(encodeCells(cells), 'A3FK2B');
   assert.deepEqual([...decodeCells('A3FK2B', 7)], [...cells]);
-  const p = newPainting(6, 5); p.cells[7] = 3;
-  assert.deepEqual(decodePainting(encodePainting(p)), p);
+  const p = newPainting(6, 5); p.set(1, 1, 3);
+  assert.deepEqual(decodePainting(encodePainting(p)).toDense(), p.toDense());
 });
 test('codec rejects junk instead of throwing', () => {
   for (const bad of [null, {}, { w: 0, h: 2, d: 'A' }, { w: 9999, h: 2, d: 'A' }, { w: 2, h: 2, d: 5 }]) assert.equal(decodePainting(bad), null);
@@ -44,14 +44,14 @@ test('every saved-data version loads', () => {
   const { current, hung } = v1.activities.painting;
   assert.equal(hung.length, 2);
   assert.equal(current.w, 72); assert.equal(current.h, 54);
-  assert.deepEqual([...decodePainting(current).cells.slice(0, 12)], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0]);
+  assert.deepEqual([...decodePainting(current).toDense().slice(0, 12)], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0]);
   const v2 = migrate(fixture('save-v2.json'));
-  assert.deepEqual([...decodePainting(v2.activities.painting.current).cells], [0, 0, 1, 1, 1, 2, 2, 2]);
+  assert.deepEqual([...decodePainting(v2.activities.painting.current).toDense()], [0, 0, 1, 1, 1, 2, 2, 2]);
 });
 test('a save with a book loads, and one from before the book has none (no version bump: the field is optional)', () => {
   const withBook = migrate(fixture('save-v2-book.json')).activities.painting;
   assert.equal(withBook.book.length, 2);
-  assert.deepEqual([...decodePainting(withBook.book[1]).cells], [0, 0, 1, 1, 1, 2, 2, 2]);
+  assert.deepEqual([...decodePainting(withBook.book[1]).toDense()], [0, 0, 1, 1, 1, 2, 2, 2]);
   assert.equal(migrate(fixture('save-v2.json')).activities.painting.book, undefined);
 });
 test('unreadable saves become a fresh start', () => {
@@ -77,8 +77,8 @@ test('store saves after a delay, flush writes now, and survives bad storage', ()
 test('grid: tools paint, sponge is partial, cloth erases', () => {
   const p = newPainting(20, 20);
   stamp(p, 10, 10, 'brushS', 2);
-  assert.equal(p.cells.filter(Boolean).length, 5);
-  assert.equal(p.cells[10 * 20 + 10], 3);
+  assert.equal(p.paintedCount(), 5);
+  assert.equal(p.get(10, 10), 3);
   stamp(p, 10, 10, 'cloth', 0);
   assert.ok(isBlank(p));
   stamp(p, 10, 10, 'sponge', 0, () => 0.9);
@@ -90,7 +90,7 @@ test('grid: tools paint, sponge is partial, cloth erases', () => {
 test('grid: strokes leave no gaps', () => {
   const p = newPainting(40, 10);
   strokeLine(p, [2, 5], [37, 5], 'brushS', 0);
-  for (let x = 2; x <= 37; x++) assert.equal(p.cells[5 * 40 + x], 1);
+  for (let x = 2; x <= 37; x++) assert.equal(p.get(x, 5), 1);
 });
 test('grid fits the screen with whole-number cells', () => {
   for (const [W, H] of [[150, 300], [216, 480], [640, 360], [900, 360], [320, 720], [2000, 1000]]) {
@@ -112,14 +112,14 @@ test('paper grows and shrinks around the painting but never cuts paint', () => {
   const g = resizeSides(p, 5, 2, 0, 7);
   assert.deepEqual([g.l, g.t, g.r, g.b], [5, 2, 0, 7]);
   assert.equal(g.p.w, 35); assert.equal(g.p.h, 29);
-  assert.equal(g.p.cells[(8 + 2) * g.p.w + 10 + 5], 3, 'same paint in the same place');
-  assert.equal(g.p.cells.filter(Boolean).length, p.cells.filter(Boolean).length, 'no paint lost or added');
+  assert.equal(g.p.get(10 + 5, 8 + 2), 3, 'same paint in the same place');
+  assert.equal(g.p.paintedCount(), p.paintedCount(), 'no paint lost or added');
   // shrink: bare paper goes, but the cut stops at the paint
   const cut = resizeSides(p, -100, -100, -100, -100);
-  assert.equal(cut.p.cells.filter(Boolean).length, p.cells.filter(Boolean).length, 'a huge cut still loses no paint');
+  assert.equal(cut.p.paintedCount(), p.paintedCount(), 'a huge cut still loses no paint');
   assert.ok(cut.p.w >= bb.x1 - bb.x0 + 1 && cut.p.h >= bb.y1 - bb.y0 + 1 && cut.p.w >= MIN_PAPER && cut.p.h >= MIN_PAPER);
   assert.equal(cut.p.w, MIN_PAPER, 'a cut stops at the smallest paper');
-  const wide = newPainting(40, 20); for (let x = 8; x < 30; x++) wide.cells[5 * 40 + x] = 2;
+  const wide = newPainting(40, 20); for (let x = 8; x < 30; x++) wide.set(x, 5, 2);
   const tight = resizeSides(wide, -100, 0, -100, 0);
   assert.deepEqual([tight.l, tight.r, tight.p.w], [-8, -10, 22], 'a cut stops right at the paint');
   const bare = resizeSides(newPainting(30, 20), 0, 0, -100, -100);
@@ -200,7 +200,7 @@ test('IndexedDB store: starts from what it holds, writes per activity, moves old
 
 test('thumbnails keep thin lines and letterbox', () => {
   const p = newPainting(72, 54);
-  for (let x = 0; x < 72; x++) p.cells[27 * 72 + x] = 4;
+  for (let x = 0; x < 72; x++) p.set(x, 27, 4);
   const v = resample(p, 36, 27);
   assert.ok(v.some((c) => c === 4)); // a one-cell line survives halving
   assert.deepEqual(fitRect(100, 50, 36, 27), { x: 0, y: 4, w: 36, h: 18 });
@@ -239,14 +239,14 @@ test('stamps are whole pictures in paint colors, and scale works', () => {
 
 test('a stamp lands centered, leaves bare cells alone and is clipped at the edge', () => {
   const p = newPainting(40, 40);
-  p.cells.fill(2);
+  for (let y = 0; y < 40; y++) for (let x = 0; x < 40; x++) p.set(x, y, 2);
   const a = stampArt('sadie');
   putStamp(p, a, 20, 20);
-  assert.ok(p.cells.some((v) => v === 10), 'white from the stamp');
-  assert.equal(p.cells[0], 2, 'far cells untouched');
-  assert.equal(p.cells[(20 - (a.h >> 1)) * 40 + 20 - (a.w >> 1)], 2, 'a see-through corner keeps the paint under it');
+  assert.ok(p.toDense().some((v) => v === 10), 'white from the stamp');
+  assert.equal(p.get(0, 0), 2, 'far cells untouched');
+  assert.equal(p.get(20 - (a.w >> 1), 20 - (a.h >> 1)), 2, 'a see-through corner keeps the paint under it');
   putStamp(p, a, 0, 0); putStamp(p, a, 39, 39); // half off the paper: no crash
-  assert.equal(p.cells.length, 1600);
+  assert.equal(p.toDense().length, 1600);
 });
 
 test('scale is always a whole number and the view is big enough', () => {
@@ -297,7 +297,7 @@ test('hex colors only in art files', () => {
   assert.deepEqual(bad, []);
 });
 
-const pic = (n) => ({ w: 2, h: 2, cells: new Uint8Array(4).fill(n) });
+const pic = (n) => Paper.fromDense(2, 2, new Uint8Array(4).fill(n));
 test('a full line sends new paintings to the book and nothing is ever dropped', () => {
   const hung = Array.from({ length: 12 }, (_, i) => pic(i)), book = [];
   assert.deepEqual(addFinished(hung, book, pic(20)), { dest: 'line', index: 12 });
@@ -305,25 +305,25 @@ test('a full line sends new paintings to the book and nothing is ever dropped', 
   assert.deepEqual(addFinished(hung, book, pic(21)), { dest: 'book', index: 0 });
   assert.deepEqual(addFinished(hung, book, pic(22)), { dest: 'book', index: 1 });
   assert.deepEqual([hung.length, book.length], [13, 2]);
-  assert.equal(hung[0].cells[0], 0, 'the oldest is still on the line');
+  assert.equal(hung[0].get(0, 0), 0, 'the oldest is still on the line');
 });
 test('moving between the line and the book, and deleting', () => {
   const hung = [pic(1), pic(2), pic(3)], book = [pic(9)];
   assert.ok(lineToBook(hung, book, 1));
-  assert.deepEqual(hung.map((p) => p.cells[0]), [1, 3]);
-  assert.deepEqual(book.map((p) => p.cells[0]), [9, 2]);
+  assert.deepEqual(hung.map((p) => p.get(0, 0)), [1, 3]);
+  assert.deepEqual(book.map((p) => p.get(0, 0)), [9, 2]);
   assert.ok(!lineToBook(hung, book, 5) && !bookToLine(hung, book, -1));
   assert.ok(bookToLine(hung, book, 0));
-  assert.deepEqual(hung.map((p) => p.cells[0]), [1, 3, 9]);
+  assert.deepEqual(hung.map((p) => p.get(0, 0)), [1, 3, 9]);
   const full = Array.from({ length: 13 }, (_, i) => pic(i)), b2 = [pic(50)];
   assert.ok(!bookToLine(full, b2, 0), 'a full line refuses');
   assert.deepEqual([full.length, b2.length], [13, 1], 'and nothing moved');
-  assert.equal(remove(book, 0).cells[0], 2);
+  assert.equal(remove(book, 0).get(0, 0), 2);
   assert.equal(remove(book, 7), null);
   assert.equal(book.length, 0);
   const loaded = splitLoaded(Array.from({ length: 15 }, (_, i) => pic(i)), [pic(99)]);
   assert.equal(loaded.hung.length, 13);
-  assert.deepEqual(loaded.book.map((p) => p.cells[0]), [0, 1, 99], 'extras go to the front of the book');
+  assert.deepEqual(loaded.book.map((p) => p.get(0, 0)), [0, 1, 99], 'extras go to the front of the book');
 });
 test('the book page lays cards out in columns, scrolls, and can be hit', () => {
   for (const [W, H, u] of [[216, 480, 1], [640, 360, 1], [900, 400, 2], [150, 300, 1]]) {
@@ -363,12 +363,12 @@ test('chooser buttons stay on screen and the trash needs a hold', () => {
 test('tapping a painting puts a copy on the easel and the easel painting takes its place', () => {
   const list = [pic(1), pic(2), pic(3)], easel = pic(9);
   const got = takeToEasel(list, 1, easel, false);
-  assert.deepEqual([...got.cells], [2, 2, 2, 2]);
-  assert.notEqual(got, list[1]); assert.notEqual(got.cells, pic(2).cells);
-  assert.deepEqual(list.map((p) => p.cells[0]), [1, 9, 3], 'swapped in the same place');
+  assert.deepEqual([...got.toDense()], [2, 2, 2, 2]);
+  assert.notEqual(got, list[1]); assert.notEqual(got.tiles, list[1].tiles);
+  assert.deepEqual(list.map((p) => p.get(0, 0)), [1, 9, 3], 'swapped in the same place');
   const bare = takeToEasel(list, 0, pic(0), true);
-  assert.equal(bare.cells[0], 1);
-  assert.deepEqual(list.map((p) => p.cells[0]), [9, 3], 'a bare easel is just replaced');
+  assert.equal(bare.get(0, 0), 1);
+  assert.deepEqual(list.map((p) => p.get(0, 0)), [9, 3], 'a bare easel is just replaced');
   assert.equal(takeToEasel(list, 5, easel, false), null);
 });
 test('edge arrows and the hold ring stay on screen', () => {
@@ -383,12 +383,29 @@ test('edge arrows and the hold ring stay on screen', () => {
   }
 });
 
-test('undo snapshots pack to runs and unpack exactly', () => {
-  const cells = new Uint8Array(2000 * 2000); cells[5] = 3; cells[2000 * 1000 + 17] = 10; cells.fill(2, 100, 140);
-  const s = packSnapshot(2000, 2000, cells);
-  assert.ok(s.vals.length < 20, 'a mostly bare paper packs to a few runs');
-  assert.deepEqual(unpackSnapshot(s), cells);
-  assert.deepEqual([...unpackSnapshot(packSnapshot(3, 1, Uint8Array.from([1, 1, 4])))], [1, 1, 4]);
+test('paper is tiles: bare paper costs nothing, edits are journaled, undo puts them back', () => {
+  const p = new Paper(2000, 2000);
+  assert.equal(p.tiles.size, 0);
+  p.beginJournal(); p.set(5, 5, 3); p.set(1500, 1700, 10);
+  const step = p.endJournal(p.size());
+  assert.equal(p.tiles.size, 2); assert.equal(p.get(1500, 1700), 10); assert.equal(p.paintedCount(), 2);
+  p.restore(step);
+  assert.equal(p.tiles.size, 0, 'undo: the tiles that did not exist are gone again');
+  p.set(70, 70, 4); p.beginJournal(); p.clear(); const wipe = p.endJournal(p.size());
+  assert.ok(p.isBlank()); p.restore(wipe); assert.equal(p.get(70, 70), 4, 'a wipe undoes');
+  p.beginJournal(); p.set(70, 70, 0); p.endJournal(p.size());
+  assert.equal(p.tiles.size, 0, 'a tile erased back to bare paper is dropped');
+  assert.equal(p.get(-5, 3), 0); p.set(-5, 3, 7); assert.equal(p.tiles.size, 0, 'off the paper is ignored');
+});
+test('growing paper to the left or top moves nothing and keeps the paint where it was', () => {
+  const p = new Paper(100, 100); p.set(3, 4, 6);
+  const g = p.resized(130, 70, 5, 0);
+  assert.deepEqual([g.w, g.h, g.get(133, 74), g.get(3, 4)], [235, 170, 6, 0]);
+  assert.equal(g.tiles, p.tiles, 'sharing the tiles: nothing was copied');
+  assert.deepEqual(g.bounds(), { x0: 133, y0: 74, x1: 133, y1: 74 });
+  const c = g.resized(-130, -70, -5, 0); assert.equal(c.get(3, 4), 6);
+  const q = p.clone(); q.set(3, 4, 1); assert.equal(p.get(3, 4), 6, 'a clone is its own paint');
+  assert.ok(TILE === 64);
 });
 test('the wall: paper at the limit may be scrolled a little past its edge, smaller paper may not', () => {
   const W = 400, H = 800, cell = 8;
@@ -402,5 +419,9 @@ test('big paintings save small and load again', () => {
   const p = newPainting(MAX_SIDE, MAX_SIDE); stamp(p, 1000, 1000, 'brushB', 4);
   const e = encodePainting(p);
   assert.ok(e.d.length < 400, 'a bare big paper costs next to nothing to save');
-  assert.deepEqual(decodePainting(e).cells, p.cells);
+  assert.deepEqual(decodePainting(e).toDense(), p.toDense());
+  const q = newPainting(70, 70); q.set(69, 69, 2); q.set(0, 0, 5); q.set(64, 3, 9);
+  assert.deepEqual(decodePainting(encodePainting(q)).toDense(), q.toDense(), 'paint across tile edges survives');
+  const g = q.resized(10, 20, 0, 0); // paint that sits in tiles shifted by growth
+  assert.deepEqual(decodePainting(encodePainting(g)).toDense(), g.toDense(), 'and after growing the paper');
 });

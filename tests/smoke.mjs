@@ -27,7 +27,7 @@ for (const target of targets) {
 
   await page.goto(`${url}/${target}?test`);
   await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room');
-  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { color: s.color, tool: s.tool, hung: s.hung.length, trayOpen: s.trayOpen, painted: s.current.cells.some(Boolean) }; });
+  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { color: s.color, tool: s.tool, hung: s.hung.length, trayOpen: s.trayOpen, painted: !s.current.isBlank() }; });
   const first = await st();
   assert.equal(first.hung, 2, `${target}: two example paintings on the line`);
 
@@ -112,7 +112,7 @@ for (const target of targets) {
 
   // stamps: open the stamps drawer, pick Chooter the dog, make him bigger. He shows where he will land
   // while the finger is down and is only painted when it lifts; undo takes him back.
-  const cellsPainted = () => page.evaluate(() => window.__studio.activity('painting')._state().current.cells.filter(Boolean).length);
+  const cellsPainted = () => page.evaluate(() => window.__studio.activity('painting')._state().current.paintedCount());
   await page.waitForTimeout(400);
   await page.mouse.click(tx, ty);
   await page.waitForTimeout(400);
@@ -340,7 +340,7 @@ for (const target of targets) {
   await page.evaluate(() => window.__studio.enter('painting'));
   await until(page, () => window.__studio.debug().mode === 'painting', 'painting mode');
   await page.waitForTimeout(1200);
-  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { w: s.current.w, h: s.current.h, view: s.view, tabs: s.tabs, painted: s.current.cells.filter(Boolean).length, hung: s.hung.length, natural: s.natural }; });
+  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { w: s.current.w, h: s.current.h, view: s.view, tabs: s.tabs, painted: s.current.paintedCount(), hung: s.hung.length, natural: s.natural }; });
   const geo = () => page.evaluate(() => { const t = window.__studio.activity('painting')._tray(), d = window.__studio.debug(); return { S: d.S, tab: t.tab, H: d.H, items: t.items.map((i) => ({ k: i.k, hit: i.hit })) }; });
   const css = (g, v) => (v * g.S) / 2; // canvas pixels to css pixels (device scale 2)
   const openTray = async () => { const g = await geo(); await page.touchscreen.tap(css(g, g.tab.x + g.tab.w / 2), css(g, g.H - g.tab.h / 2)); await page.waitForTimeout(500); };
@@ -472,7 +472,7 @@ for (const target of targets) {
   await page.mouse.click(easel.x, easel.y);
   await until(page, () => window.__studio.debug().mode === 'painting', 'painting mode');
   await page.waitForTimeout(1200);
-  const state = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { w: s.current.w, h: s.current.h, painted: s.current.cells.reduce((a, v) => a + (v ? 1 : 0), 0), view: s.view }; });
+  const state = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { w: s.current.w, h: s.current.h, painted: s.current.paintedCount(), view: s.view }; });
   const before = await state();
   assert.deepEqual([before.w, before.h], [2000, 2000], 'a painting 2000 cells a side opens at its own size');
   await page.mouse.move(150, 300); await page.mouse.down();

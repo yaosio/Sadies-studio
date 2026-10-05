@@ -155,21 +155,3 @@ export function drawWall(c, place, atX, atY, W, H, u) {
   if (atX) { if (L > 0) c.fillRect(L - lip, 0, lip, H); if (R < W) c.fillRect(R, 0, lip, H); }
   if (atY) { if (T > 0) c.fillRect(0, T - lip, W, lip); if (B < H) c.fillRect(0, B, W, lip); }
 }
-
-// Faint fibres in the paper, fixed to the paper (not the screen) so scrolling over
-// bare paper still looks like moving. Sparse, only on bare cells. Fibres sit on
-// blocks of cells so they stay about the same size on screen at any zoom.
-export function drawGrain(c, place, cells, gw, gh, W, H, u) {
-  const k = place.cell, m = Math.max(1, Math.ceil((8 * u) / k)), B = m * k;
-  if (B > 80 * u) return;
-  const x0 = Math.max(0, Math.floor(-place.x / B)), y0 = Math.max(0, Math.floor(-place.y / B));
-  const x1 = Math.min(Math.floor((gw - 1) / m), Math.floor((W - place.x) / B)), y1 = Math.min(Math.floor((gh - 1) / m), Math.floor((H - place.y) / B));
-  c.fillStyle = 'rgba(150,120,80,.2)';
-  const len = Math.max(2, Math.round(B * 0.45)), t = Math.max(1, Math.round(u * 0.75));
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-    const h = Math.imul(x * 73856093 ^ y * 19349663, 0x9e3779b1) >>> 0;
-    if (h % 60 !== 0 || cells[y * m * gw + x * m] !== 0) continue;
-    const ox = place.x + x * B, oy = place.y + y * B, a = (h >>> 8) % Math.max(1, B - len), b = (h >>> 16) % Math.max(1, B - t);
-    if ((h >>> 5) & 1) c.fillRect(Math.round(ox + a), Math.round(oy + b), len, t); else c.fillRect(Math.round(ox + b), Math.round(oy + a), t, len);
-  }
-}

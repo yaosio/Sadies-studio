@@ -123,8 +123,11 @@ so) or **proposed** (a default picked, awaiting the user).
   Paper stops growing at 2000 cells a side (the number is [proposed]); at the limit a
   wooden wall shows past the paper's edge and Sadie says so. No minimap for now (too small
   on a phone): zooming out shows where you are. Reason: the user's choice.
-- [confirmed] Faint fibres in bare paper, fixed to the paper, so scrolling over empty paper
-  still looks like moving. Not dots across the screen.
+- [confirmed] While panning or zooming, ruler ticks (every 10 cells, longer every 50) show on
+  all four screen edges, fixed to the paper and fading after movement stops, so scrolling over
+  empty paper still looks like moving. Not dots across the screen, no fibres on the paper.
+- [confirmed] Paper is stored as sparse 64x64 tiles that exist only once painted on; undo keeps
+  only the touched tiles. The saved text format is unchanged, so old paintings load as before.
 - [proposed] Zoom stops at 32 canvas
   pixels per cell. A double tap within 28 art pixels and about a third of a second
   zooms instead of dabbing twice.

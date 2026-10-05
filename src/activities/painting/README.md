@@ -7,7 +7,7 @@ Full-screen paper activity. Product rules: [docs/painting.md](../../../docs/pain
 - `grid.js`: pure paint-grid logic (default size, growing and shrinking, zoom range and
   view clamping, pull-out tab boxes, stamping, strokes).
 - `tools.js`: the four tools. `stamps.js`: the stamp pictures as paint cells (pure).
-  `undo.js`: packed undo snapshots (pure). `thumb.js`: fitting and shrinking for the easel board and clothesline. `tray.js`: tray
+  `thumb.js`: fitting and shrinking for the easel board and clothesline. `tray.js`: tray
   layout, hit boxes and what each drawer holds (pure).
 - `art.js`: pot, brush, sponge, cloth, peg, door, drawer knob and tray drawing.
   `clothesline-art.js`: the line with its frames. `examples.js`: first-run paintings.
@@ -19,7 +19,7 @@ Full-screen paper activity. Product rules: [docs/painting.md](../../../docs/pain
 
 Zoom and scroll are a `view` (`{ cell, ox, oy }`, smooth) that `place` is derived
 from; the world forwards pinch (`gestureStart/Move/End`) and wheel input. Pull-out
-tabs and the undo stack are in `index.js` and `art.js`. Tall paintings
+tabs and the undo journal are in `index.js` and `art.js`. The paper is a sparse tile store (`paper.js`), drawn by `paper-art.js` (tiles, scroll ticks). Tall paintings
 hang rolled up (`hangShape` in `clothesline-art.js`).
 
 Saved state: `{ current, hung, book }`, painting codec in `src/save/codec.js`.
