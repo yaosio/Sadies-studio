@@ -59,7 +59,7 @@ Raise the relevant ones before building. Log each answer in
 - All art is drawn in code, no image files. (done)
 - Sadie's design source is a photo of the cat the user shared; not kept in the
   repo. (default)
-- One palette file. (default)
+- One palette file, `src/art/palette.js`. (done)
 
 ## Learning content (later)
 
@@ -72,4 +72,5 @@ Raise the relevant ones before building. Log each answer in
 
 - Tests, screenshot checks and smoke test: see testing.md. (default)
 - Error handling: a child must never see a crash or technical message. (default)
-- Licensing for fonts and any library used. (default: record in decisions)
+- Licensing for fonts and any library used. Pixelify Sans is OFL (hosted);
+  no runtime libraries; Playwright is dev only. (done)

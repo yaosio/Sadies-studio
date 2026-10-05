@@ -1,55 +1,85 @@
-# Architecture (proposed)
+# Architecture
 
-Nothing here is built yet. All of it is **proposed** until the user confirms;
-see [decisions.md](decisions.md). Change this file when code arrives.
+Plain web tech: HTML, CSS, JavaScript ES modules, one canvas. No framework, no
+runtime dependencies. Growth means adding files; painting code is never edited
+to add a room.
 
-## Principles
-
-- Plain web tech: HTML, CSS, JavaScript ES modules, canvas. No build step, no
-  framework, minimal dependencies.
-- Growth means adding files. Painting code never gets edited to add a room.
-
-## Proposed layout
+## Layout
 
 ```
-index.html            entry; loads src/main.js
-src/main.js           boot, resize, main loop
-src/engine/           camera, input (pointer), layout, pixel drawing helpers
-src/world/            room loader, hotspots, Sadie, speech
-src/rooms/<room>/     room.json (data) + README.md
-src/activities/<name>/  module + README.md
-src/save/             versioned storage (see saving.md)
-src/art/              palette file, sprite helpers, naming rules
-tests/                logic tests
-tests/visual/         screenshot checks
-docs/                 topic docs
+index.html              entry; loads src/main.js, src/style.css
+assets/fonts/           Pixelify Sans (hosted, OFL license)
+src/main.js             boot: wires store, sound, speech and world
+src/engine/             view (integer scale), camera math, small utils
+src/art/                palette.js (the only palette), px.js (pixel toolkit), Sadie, effects
+src/world/              world.js (camera, input, transitions, Sadie), speech, effects, lines
+src/audio/              sound.js (synthesized, no audio files)
+src/save/               store.js, migrate.js (versions), codec.js (paintings as text)
+src/rooms/<room>/       room.js (data), art.js (drawn once), geometry.js, lines.js, README
+src/activities/         registry.js + one folder per activity (index.js, README, ...)
+tests/                  logic.test.js, smoke.mjs, visual/ (screenshots), fixtures/, helpers/
+tools/                  build.mjs (single file), serve.mjs
 ```
 
 ## Rooms are data
 
-A room file lists: its width, its wall/floor style, and its objects (position,
-size, sprite, and which activity or line it triggers). Doorways link rooms.
-A room with no activity yet is allowed; its objects just make Sadie speak.
+`room.js` exports one object: width, `geometry(height)` (rooms stretch taller
+on tall screens; positions are measured from the floor line), `paint(geometry)`
+(draws the room bitmap once), `anchors` (where Sadie, the easel board and the
+clothesline sit), `lines` (what Sadie says) and `hotspots`. A hotspot is a
+rectangle with an action: `{ activity: 'painting' }`, `{ say: 'window' }` or
+`{ glide: x }`. A test validates every room file.
 
 ## Activities are modules
 
-Each activity exports the same tiny interface:
+`src/activities/registry.js` maps an id to a factory `create(env)`.
+`env` is `{ store, sound, say(text), exit(), hang(), reducedMotion, now() }`.
+The object returned has:
 
-- `open(context)` start; context gives screen size, pointer events, save access
-- `close()` stop and release
-- `save()` return its saveable state, or `load(state)` to restore it
+- `load(saved)`, `save()`: its own saved state (see [saving.md](saving.md))
+- `resize(W, H, u)`, `prepare()`: canvas size changed; before the glide-in
+- `open()`, `close()`: the world gives it the whole screen, or takes it back
+- `pointerDown/Move/Up(x, y)`, `key(e)`, `update(dt)`, `draw(ctx, now)`
+- `room`: what it shows in the room (`drawBoard`, `drawLine`, `hit`, `tap`,
+  `slotRect`, `pictureRect`, `pictureBox`)
+- `beginHang()`, `finishHang()`, `snapshot()`, `paperRect()`, `boardFit()`:
+  the paper-activity transitions (glide in, hang up)
 
-Painting is the first activity and is the template for the rest. An activity
-owns its own tools, art and README. It must not reach into another activity.
+The glide-in and hang-up are written for activities that have a sheet of paper
+(painting). When a second kind of activity arrives, generalize `world.js`
+transitions then, not before.
 
-## How to add a room / activity
+## How to add a room
 
-Write these steps here when the first of each is built. Until then, follow the
-layout above and write the README for the new folder in the same PR.
+Copy `src/rooms/studio/`: write `geometry.js`, `art.js`, `lines.js`, `room.js`,
+README. Doorways today are `glide` hotspots inside one wide room; separate
+rooms need a room switcher in `world.js` (not built).
+
+## How to add an activity
+
+Make `src/activities/<name>/` with `index.js` exporting `create<Name>(env)`,
+a README, and its own art and lines. Add it to `registry.js`, give a room a
+hotspot with `{ activity: '<name>' }`. Its saved state goes through
+`env.store.get/set(id, ...)`; add a migration if the format ever changes.
+
+## Single-file build (artifacts)
+
+For now the app runs as a claude.ai artifact, which is one HTML page.
+`npm run build` writes `dist/index.html` (script, CSS and font inlined, about
+110 KB) with `tools/build.mjs`, a small dependency-free bundler. It only
+understands this code style, and fails loudly otherwise:
+
+- one-line imports: `import { a, b } from './x.js';`
+- exports as `export const|function|class name` (no default, no `export let`)
+- no circular imports
+
+The smoke test runs against both `index.html` and `dist/index.html`.
+`dist/artifact.html` is the same page without the html/head/body wrapper, for
+the Artifact tool. `dist/` is not committed; build it before publishing.
 
 ## Constraints that shape everything
 
 - Portrait, landscape, mouse and touch from the start (see [world.md](world.md)).
 - Integer pixel scaling only (see [art-style.md](art-style.md)).
-- No network. Works offline once loaded.
-- Everything the child makes must survive updates (see [saving.md](saving.md)).
+- No network, no outside requests (the smoke test fails on any).
+- Everything the child makes survives updates (see [saving.md](saving.md)).

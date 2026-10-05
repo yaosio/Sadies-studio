@@ -1,35 +1,39 @@
 # Saving
 
 Everything the child makes stays on the device, in the browser's local storage.
-No accounts, no server.
+No accounts, no server. Code: `src/save/`.
 
 ## Rule
 
 Saved data carries a **version number from day one**. Any change to what is
-saved adds a migration so old paintings keep loading. Never drop or reinterpret
-old data without a migration and a test.
+saved adds a migration step in `src/save/migrate.js` and a fixture in
+`tests/fixtures/` so old paintings keep loading. Never drop or reinterpret old
+data without both.
 
-## What the mockup does (starting point)
+## Format (version 2)
 
-- Key `sadies-studio-v1` holds JSON `{ p: [...], c: ... }`.
-- `p` is the hung paintings (max 13), `c` the painting on the easel.
-- A painting is a string of 72 x 54 characters, one per pixel, `A` (paper) to
-  `K` (color 10), i.e. char code minus 65.
-- Saves are debounced about 500 ms after a stroke.
-- Reads and writes are wrapped in try/catch; failure means the app still runs
-  without saving.
+- Key `sadies-studio`: `{ version: 2, activities: { painting: { current, hung } } }`.
+  Each activity owns its own entry (`store.get(id)` / `store.set(id, state)`).
+- A painting is `{ w, h, d }`: width, height, and `d`, one letter per cell, `A`
+  (bare paper) to `K` (paint 10), with a run count after repeated letters
+  (`A12B` is twelve A then one B). See `src/save/codec.js`.
+- `current` is the painting on the easel; `hung` the clothesline, oldest first,
+  at most 13.
+- Palette order is saved data: paint value N means entry N of `PAINT` in
+  `src/art/palette.js`. Never reorder or insert.
+- Version 1 was the mockup (`{ p, c }`, 72 x 54, key `sadies-studio-v1`). It is
+  read and migrated if found.
 
-## Proposed for the real app
+## Behavior
 
-- An explicit `version` field in the saved object, plus one migration function
-  per version step.
-- Painting size (width, height) stored with each painting so the grid can
-  change later.
-- Every storage read or write is guarded; a corrupt or missing save falls back
-  to a fresh start, never a crash.
-- Tests load a saved fixture from every past version.
+- Writes are debounced about 500 ms after a stroke, and flushed when the page
+  is hidden or closed.
+- Every read and write is guarded. Missing, full, blocked or corrupt storage
+  means a fresh start and an app that still runs, never a crash.
+- With no save at all, two example paintings hang on the clothesline.
 
-## Decided
+## Not built yet
 
-- Progress is saved per activity; each activity owns its saved state.
-- Any user can save a painting out as an image file. Not built yet.
+- Saving a painting out as an image file (decided: any user may). Needs a
+  place in the UI that is not a menu.
+- Backup or restore across devices.

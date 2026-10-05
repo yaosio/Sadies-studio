@@ -23,9 +23,11 @@ make Sadie say a short line and are placeholders for later activities
 
 ## Easel and the camera
 
-Tapping the easel makes the camera **glide in** (zoom) until the paper fills as
-much of the screen as fits. Tapping Sadie pets her. Escape or the back
-object exits. The camera never snaps.
+Tapping the easel makes the camera **glide in** (zoom) to the easel board, and
+the paper then grows to take the whole screen (see [painting.md](painting.md)).
+Leaving reverses it. Tapping Sadie pets her. Escape or the door exits. The
+camera never snaps (it does with reduced motion). Hanging a painting flies it
+from the full screen to the clothesline while the camera pulls back.
 
 ## Sadie's speech
 
@@ -35,15 +37,11 @@ Reduced-motion users get no pop animation and no sway.
 
 ## Layouts
 
-Layout is chosen per aspect ratio, never by device type:
-
-- **Landscape:** tool shelves on the left (brushes, sponge, cloth, hang, back)
-  and right (paint pots) screen edges.
-- **Portrait:** one shelf row on top (tools), two rows of pots at the bottom.
-- The canvas is centered in the remaining space at the largest even pixel
-  size that fits.
-
-Pixel scale is an integer chosen from window size and device pixel ratio.
+Layout is chosen by what fits, never by device type. In the room: the whole
+height of the room fits the screen at a whole-number scale and the room scrolls
+sideways. In painting: the paper fills the screen and the tray is a shelf along
+the bottom (one row when wide, three when narrow). Pixel scale is an integer
+chosen from window size and device pixel ratio (`src/engine/view.js`).
 
 ## Input
 

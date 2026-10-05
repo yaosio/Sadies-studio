@@ -29,12 +29,14 @@ pixels.
   yellow `#ffd60a`, green `#3cc24a`, blue `#2e7cf6`, purple `#8b4fe0`,
   pink `#ff6fb5`, brown `#9a5a2c`, black `#2a2238`, white `#ffffff`
 
-When code exists, the palette lives in one file and everything imports it.
-Do not hardcode colors in new code.
+The palette lives in `src/art/palette.js` (paint colors, ink, paper). Only art
+files may hold their own one-off shades; a test enforces it. Do not hardcode
+colors elsewhere.
 
 ## Type
 
-Pixelify Sans for Sadie's speech, hosted in the app (no third-party requests). Fall back to system sans.
+Pixelify Sans (SIL Open Font License, `assets/fonts/`) for Sadie's speech,
+hosted in the app (no third-party requests). Falls back to system sans.
 
 ## Sadie
 

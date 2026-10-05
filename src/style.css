@@ -1,0 +1,39 @@
+/* One full-bleed pixel canvas (the room is the menu) with Sadie's speech bubble
+   floating over it. The scene stays bright in every theme, so colors are set once. */
+@font-face {
+  font-family: "Pixelify Sans";
+  font-weight: 500 600;
+  font-display: swap;
+  src: url("../assets/fonts/PixelifySans.woff2") format("woff2");
+}
+:root {
+  --wall: #86ddd0;
+  --ink: #4b3a5e;
+  --paper: #fffaf0;
+  --shadow: rgba(75, 58, 94, .35);
+  --font: "Pixelify Sans", "Trebuchet MS", system-ui, sans-serif;
+  color-scheme: light;
+}
+html, body {
+  height: 100%; margin: 0; overflow: hidden; background: var(--wall);
+  overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+#scene { position: fixed; left: 0; top: 0; display: block; touch-action: none; image-rendering: crisp-edges; image-rendering: pixelated; }
+#bubble {
+  position: fixed; z-index: 2; left: 0; top: 0; display: flex; gap: 10px; align-items: center;
+  max-width: min(300px, calc(100vw - 32px)); box-sizing: border-box; padding: 9px 13px 10px 10px;
+  background: var(--paper); color: var(--ink); border: 3px solid var(--ink); border-radius: 3px;
+  box-shadow: 4px 4px 0 var(--shadow); font: 500 17px/1.25 var(--font); pointer-events: none;
+}
+#bubble[hidden] { display: none; }
+#bubble.pop { animation: pop .2s steps(3) both; }
+@keyframes pop { from { transform: translateY(6px) scale(.7); opacity: .4; } to { transform: none; opacity: 1; } }
+#bubble::after {
+  content: ""; position: absolute; width: 10px; height: 10px; background: var(--paper);
+  border: 3px solid var(--ink); border-top: 0; border-left: 0; left: var(--tx, 70%); bottom: -8px;
+  transform: translateX(-50%) rotate(45deg);
+}
+#bubble.side::after { left: auto; right: -8px; bottom: auto; top: 16px; transform: rotate(-45deg); }
+#bubble.dock::after { display: none; }
+#bubbleFace { width: 32px; height: 28px; flex: none; image-rendering: pixelated; }
+@media (prefers-reduced-motion: reduce) { #bubble.pop { animation: none; } }

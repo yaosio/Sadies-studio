@@ -1,0 +1,15 @@
+{
+  "name": "sadies-studio",
+  "private": true,
+  "type": "module",
+  "description": "Sadie's Studio: a browser art and learning app for one child. No runtime dependencies.",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --test tests/logic.test.js",
+    "build": "node tools/build.mjs",
+    "smoke": "node tests/smoke.mjs",
+    "visual": "node tests/visual/shots.mjs",
+    "visual:update": "node tests/visual/shots.mjs --update",
+    "check": "npm test && npm run build && npm run smoke && npm run visual"
+  }
+}
