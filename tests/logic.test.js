@@ -476,3 +476,16 @@ test('backup: everything in one file, and a file merges into what is here', asyn
   for (const bad of ['', 'nope', '[]', '{"a":1}', '{"version":2,"activities":{}}']) assert.equal(parseBackup(bad), null);
   assert.deepEqual(parseBackup(JSON.stringify({ version: 2, activities: { painting: { current: { w: 0 }, hung: [a, 5], book: 'x' } } })), { current: null, hung: [a], book: [] });
 });
+
+test('zip: files go in and come back, and the zip is readable by real tools', async () => {
+  const { makeZip, readZip } = await import('../src/save/zip.js');
+  const zip = makeZip([{ name: 'backup.json', data: '{"a":"wörld"}' }, { name: 'notes.txt', data: 'hi' }]);
+  assert.deepEqual(readZip(zip), { 'backup.json': '{"a":"wörld"}', 'notes.txt': 'hi' });
+  assert.equal(readZip(Uint8Array.from([1, 2, 3])), null);
+  const { execFileSync } = await import('node:child_process');
+  const { writeFileSync, mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const f = join(mkdtempSync(join(tmpdir(), 'zip-')), 't.zip');
+  writeFileSync(f, zip);
+  try { assert.match(execFileSync('python3', ['-c', 'import zipfile,sys;z=zipfile.ZipFile(sys.argv[1]);print(z.testzip(),z.read("notes.txt").decode())', f]).toString(), /None hi/); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+});
