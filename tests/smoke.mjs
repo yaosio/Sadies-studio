@@ -284,6 +284,26 @@ for (const target of targets) {
   await ctx.close();
   console.log(`ok  ${target} full line and the book`);
 }
+// A painting opened from the line (the examples are 72 x 54) opens with the whole painting in view, in portrait and landscape.
+for (const [label, width, height] of [['portrait', 390, 844], ['landscape', 844, 390]]) {
+  for (const target of targets) {
+    const errors = [];
+    const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    const page = await ctx.newPage();
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.goto(`${url}/${target}?test`);
+    await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room');
+    await page.evaluate(() => { window.__studio.activity('painting').room.edit(0); window.__studio.enter('painting'); });
+    await until(page, () => window.__studio.debug().mode === 'painting', 'painting mode');
+    await page.waitForTimeout(300);
+    const fit = await page.evaluate(() => { const s = window.__studio.activity('painting')._state(), d = window.__studio.debug(); return { w: s.current.w, h: s.current.h, v: s.view, W: d.W, H: d.H }; });
+    assert.deepEqual([fit.w, fit.h], [72, 54], 'the example opened at its own size');
+    assert.ok(fit.v.ox >= 0 && fit.v.oy >= 0 && fit.v.ox + fit.w * fit.v.cell <= fit.W && fit.v.oy + fit.h * fit.v.cell <= fit.H, `${target} ${label}: an opened painting is fully in view ${JSON.stringify(fit)}`);
+    assert.deepEqual(errors, [], `${target} ${label}: no errors`);
+    await ctx.close();
+    console.log(`ok  ${target} opened painting fits, ${label}`);
+  }
+}
 // Pull-out paper, zoom and scroll, undo, wipe, and a tall painting hanging, on a phone.
 for (const target of targets) {
   const errors = [];

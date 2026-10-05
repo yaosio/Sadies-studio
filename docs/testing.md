@@ -15,7 +15,7 @@ Playwright; Chromium is in the cloud environment).
    up, leave with Escape, reload and check it survived (from IndexedDB),
    on a phone: no paper controls in the tray, a fresh painting at the default size (also after hanging), undo, smooth pinch, two-finger scroll, double tap to the table
    view, hold the bucket to wipe the paper (a tap does not), hold a tab to grow the paper and push it in to shrink it, ctrl-wheel, hang it rolled up, flick the room and catch it, long-press a hung
-   painting, choose save and get a PNG download, hang a 14th painting into the book, open the book, hang from it, delete by holding (a tap does nothing), play every sound, check the trill is a roll and when it plays (on load or
+   painting, choose save and get a PNG download, an opened painting fits the screen in portrait and landscape, hang a 14th painting into the book, open the book, hang from it, delete by holding (a tap does nothing), play every sound, check the trill is a roll and when it plays (on load or
    first touch), and fail on any console
    error or request to another host. Runs on `index.html` and `dist/index.html`.
 3. **Screenshot checks** (`npm run visual`): room, painting-with-tray and the book at phone
