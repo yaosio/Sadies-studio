@@ -13,7 +13,7 @@ export function buildBackup(activities, when = new Date()) {
   return { app: BACKUP_APP, kind: 'backup', version: CURRENT_VERSION, saved: when.toISOString(), activities };
 }
 
-export const backupName = (when = new Date()) => 'sadies-studio-backup-' + when.toISOString().slice(0, 10) + '.png';
+export const backupName = (when = new Date()) => 'sadies-studio-backup-' + when.toISOString().slice(0, 10) + '.json';
 
 const same = (a, b) => a.w === b.w && a.h === b.h && a.d === b.d;
 

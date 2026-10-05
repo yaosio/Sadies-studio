@@ -60,13 +60,12 @@ data without both.
 
 **Everything in one file.** On the book's page two small buttons sit in the top-right
 corner (pictures only, like the door): **save everything** (a stack of papers) and **bring
-a file back** (an up arrow). Save everything writes `sadies-studio-backup-YYYY-MM-DD.png`: a
-picture of every painting with the backup hidden in a private PNG chunk (`src/save/png-backup.js`),
-because phone share sheets take pictures but refuse JSON or text files. The hidden text is
-an ordinary version-2 save plus `{ app, kind: 'backup', saved }`, holding the easel, the line
-and the book. Code: `src/save/backup.js` (pure), `export.js` (file side). Bringing a file back
-reads the picture (or a plain JSON file from an earlier build). Bringing a file back
-**merges**: nothing is replaced or removed; a painting in the file that is not already here
+a file back** (an up arrow). Save everything writes `sadies-studio-backup-YYYY-MM-DD.json`: an ordinary
+version-2 save plus `{ app, kind: 'backup', saved }`, holding every activity (today the easel, the
+line and the book). Code: `src/save/backup.js` (pure), `export.js` (file side). It is always a
+**download**, never the share sheet: phone share sheets refuse JSON, and the user ruled out
+hiding the data in a picture (an app that recompressed it would silently ruin the backup while
+it still looked fine). Bringing a file back **merges**: nothing is replaced or removed; a painting in the file that is not already here
 (same size and paint) is added, one already here is skipped, and a painting changed since the
 backup is a different painting so both stay. Added ones hang on the line while it has room,
 then go to the book. A file that is not ours, or bare paper, adds nothing and Sadie says so.
@@ -75,8 +74,8 @@ activity's saved state, so a new activity rides along without changes; bringing 
 merge written for it next to the painting one (`parseBackup`/`newFromBackup` only merge paintings
 today). Any new saved painting field must also be carried by `parseBackup`.
 
-**Where it goes.** On a phone or tablet (coarse pointer and a browser that can share files)
-the system **share sheet** opens, so the parent picks Drive, Files, messages and so on. Elsewhere
+**Where a picture goes.** On a phone or tablet (coarse pointer and a browser that can share files)
+the system **share sheet** opens, so the parent picks Drive, Files, messages and so on (single-painting PNGs only). Elsewhere
 (desktop) it downloads as before; so does anything where sharing is blocked or fails. Inside an
 artifact the host's own `downloads` save is the fallback. The picture saves (below) use the same path.
 

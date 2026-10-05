@@ -1,8 +1,6 @@
 // Saving out: a painting as a PNG (long-press a hung painting in the room), or everything as one file
 // (from the book's page).
-import { PAPER, PAINT, PAGE } from '../../art/palette.js';
-import { fitted } from './thumb.js';
-import { embedInPng, extractFromPng } from '../../save/png-backup.js';
+import { PAPER, PAINT } from '../../art/palette.js';
 
 const TARGET_SIDE = 1600; // the picture is about this many pixels on its long side
 
@@ -35,8 +33,9 @@ async function shareFile(blob, filename) {
   }
 }
 
-export async function saveFile(blob, filename) {
-  if (phoneLike() && (await shareFile(blob, filename))) return true;
+// share: false skips the share sheet and always downloads (the backup file: see docs/saving.md).
+export async function saveFile(blob, filename, share = true) {
+  if (share && phoneLike() && (await shareFile(blob, filename))) return true;
   try {
     const downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (downloads) { await downloads.save({ filename, data: blob }); return true; }
@@ -53,40 +52,16 @@ export async function savePng(p, filename) {
   return blob ? saveFile(blob, filename) : false;
 }
 
-// Everything in one picture: a sheet of every painting with the backup text hidden inside it
-// (save/png-backup.js), because share sheets take pictures but refuse JSON files.
-const TILE_W = 64, TILE_H = 48, TILE_S = 3, TILE_GAP = 8, COLS = 6;
-export async function saveBackupPicture(paintings, text, filename) {
-  const n = Math.max(1, paintings.length), rows = Math.ceil(n / COLS), cw = TILE_W * TILE_S, ch = TILE_H * TILE_S;
-  const cv = document.createElement('canvas');
-  cv.width = COLS * (cw + TILE_GAP) + TILE_GAP; cv.height = rows * (ch + TILE_GAP) + TILE_GAP;
-  const c = cv.getContext('2d');
-  c.fillStyle = PAGE; c.fillRect(0, 0, cv.width, cv.height);
-  paintings.forEach((p, i) => {
-    const x = TILE_GAP + (i % COLS) * (cw + TILE_GAP), y = TILE_GAP + Math.floor(i / COLS) * (ch + TILE_GAP), cells = fitted(p, TILE_W, TILE_H);
-    c.fillStyle = PAPER; c.fillRect(x, y, cw, ch);
-    for (let j = 0; j < TILE_H; j++) for (let k = 0; k < TILE_W; k++) { const v = cells[j * TILE_W + k]; if (v) { c.fillStyle = PAINT[v - 1].hex; c.fillRect(x + k * TILE_S, y + j * TILE_S, TILE_S, TILE_S); } }
-  });
-  const blob = await new Promise((done) => cv.toBlob(done, 'image/png'));
-  if (!blob) return false;
-  const png = embedInPng(new Uint8Array(await blob.arrayBuffer()), text);
-  return saveFile(new Blob([png], { type: 'image/png' }), filename);
-}
+// Everything in one file (see save/backup.js). Always a download: a share sheet refuses JSON files, and a
+// picture with the data hidden in it could silently lose the data if an app recompressed it.
+export const saveJson = (text, filename) => saveFile(new Blob([text], { type: 'application/json' }), filename, false);
 
-// Asks for a file (the system picker) and gives its text (a backup picture's hidden text, or a
-// plain file's contents), or null if they cancel. Must run from a tap, or the browser will not open the picker.
+// Asks for a file (the system picker) and gives its text, or null if they cancel. Must run from a tap, or the browser will not open the picker.
 export function pickFile() {
   return new Promise((done) => {
     const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/png,.png,.json,application/json,text/plain'; input.style.display = 'none';
-    input.onchange = async () => {
-      const f = input.files && input.files[0]; input.remove();
-      try {
-        if (!f) return done(null);
-        const bytes = new Uint8Array(await f.arrayBuffer());
-        done(extractFromPng(bytes) ?? new TextDecoder().decode(bytes));
-      } catch (e) { done(null); }
-    };
+    input.type = 'file'; input.accept = '.json,application/json,text/plain'; input.style.display = 'none';
+    input.onchange = async () => { const f = input.files && input.files[0]; input.remove(); try { done(f ? await f.text() : null); } catch (e) { done(null); } };
     input.addEventListener('cancel', () => { input.remove(); done(null); });
     document.body.appendChild(input);
     input.click();
