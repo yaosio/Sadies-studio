@@ -434,6 +434,26 @@ for (const target of targets) {
   await ctx.close();
   console.log(`ok  ${target} paper sizes and zoom`);
 }
+// Sadie's tail never touches the left or top edge of her sprite, whatever the wag (it used to be cut off).
+{
+  const page = await browser.newPage();
+  await page.goto(`${url}/index.html?test`);
+  const edges = await page.evaluate(async () => {
+    const { sadieSprite } = await import('/src/art/sadie.js');
+    let worst = 0, n = 0;
+    for (const sway of [false, true]) for (let flick = 0; flick <= 1.001; flick += 0.05) for (let T = 0; T < 8; T += 0.25) {
+      const c = sadieSprite({ blinking: false, flick, sway }, T), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      for (let y = 0; y < c.height; y++) if (d[y * c.width * 4 + 3]) worst++; // the tail swings out to the left
+      for (let x = 0; x < c.width; x++) if (d[x * 4 + 3]) worst++; // and up
+      n++;
+    }
+    return { worst, n };
+  });
+  assert.equal(edges.worst, 0, `Sadie's tail stays inside her sprite in ${edges.n} wag poses`);
+  await page.close();
+  console.log('ok  tail never clipped');
+}
+
 // Sadie's trill: it is a roll (about 28 pulses a second) that rises, not a coin chime.
 {
   const page = await browser.newPage();
