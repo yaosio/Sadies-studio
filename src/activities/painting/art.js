@@ -136,3 +136,22 @@ export function mkStampSize(step) {
   });
   p.outline('#4b3a5e'); return p.done();
 }
+
+// The wall at the edge of the biggest paper: dark planks outside the paper (drawn
+// behind it) with a lit lip where they meet it. Only on the sides at the limit.
+export function drawWall(c, place, atX, atY, W, H, u) {
+  const plank = 7 * u, lip = Math.max(1, u);
+  const band = (x, y, w, h, vertical) => {
+    if (w <= 0 || h <= 0) return;
+    c.fillStyle = '#6e4a2e'; c.fillRect(x, y, w, h);
+    c.fillStyle = '#5a3a22';
+    if (vertical) for (let px = x + plank; px < x + w; px += plank) c.fillRect(px, y, lip, h);
+    else for (let py = y + plank; py < y + h; py += plank) c.fillRect(x, py, w, lip);
+  };
+  const L = Math.round(place.x), T = Math.round(place.y), R = Math.round(place.x + place.w), B = Math.round(place.y + place.h);
+  if (atX) { band(0, 0, L, H, true); band(R, 0, W - R, H, true); }
+  if (atY) { band(0, 0, W, T, false); band(0, B, W, H - B, false); }
+  c.fillStyle = '#a87a4e';
+  if (atX) { if (L > 0) c.fillRect(L - lip, 0, lip, H); if (R < W) c.fillRect(R, 0, lip, H); }
+  if (atY) { if (T > 0) c.fillRect(0, T - lip, W, lip); if (B < H) c.fillRect(0, B, W, lip); }
+}

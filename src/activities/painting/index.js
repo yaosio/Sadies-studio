@@ -7,11 +7,12 @@ import { PAPER, PAINT, WOOD_TRIM, SHADOW } from '../../art/palette.js';
 import { encodePainting, decodePainting } from '../../save/codec.js';
 import { pick, easeOut } from '../../engine/util.js';
 import { TOOLS, DEFAULT_TOOL } from './tools.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, putStamp, strokeLine, peekTabs, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, putStamp, strokeLine, peekTabs, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs, wallOver, MAX_SIDE } from './grid.js';
 import { fitRect, fitted } from './thumb.js';
+import { drawTiles, paperToCanvas, drawTicks } from './paper-art.js';
 import { layoutTray, inRect, DEFAULT_DRAWER } from './tray.js';
 import { stampArt, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE } from './stamps.js';
-import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, drawEdgeTab, mkBack, mkChevron, mkDrawerPaints, mkDrawerTools, mkDrawerStamps, mkStampThumb, mkStampSize, drawShelf, drawTrayBack, drawHandle } from './art.js';
+import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, drawEdgeTab, mkBack, mkChevron, mkDrawerPaints, drawWall, mkDrawerTools, mkDrawerStamps, mkStampThumb, mkStampSize, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
 import { savePng } from './export.js';
@@ -39,14 +40,14 @@ export function createPainting(env) {
   let hangingIndex = -1; // a painting still flying to the line
   let tool = DEFAULT_TOOL, color = 0; // tool is a TOOLS key, or 'stamp'
   let drawer = DEFAULT_DRAWER, stampId = STAMP_IDS[0], stampSize = DEFAULT_STAMP_SIZE; // the open drawer; the chosen stamp (not saved)
-  const undoStack = []; // snapshots { w, h, cells } to go back to, newest last (not saved)
+  const undoStack = []; // undo steps (paper.js: old size and the tiles a change touched), newest last (not saved)
   let view = { cell: 1, ox: 0, oy: 0 }; // zoom and scroll: cell size, and where the paper's corner is on screen
   let anim = null; // a smooth move of the view
-  let pan = null, pinch = null, grow = null, lastPtr = null, lastTap = null;
+  let pan = null, pinch = null, grow = null, lastPtr = null, lastTap = null, peekTap = null;
   let trayKey = '', clearHold = null; // clearHold: when a finger went down on the bucket
   const hinted = {};
   let W = 0, H = 0, u = 1, place = null, tray = null;
-  let paper = null, paperDirty = true, version = 0;
+  let version = 0, snap = null, movedAt = -1e9; // version: bumps when the painting changes; snap: picture of the whole paper; movedAt: when the view last scrolled (ticks show then)
   let active = false, trayOpen = false, trayAnim = 0;
   let stroke = null, strokes = 0, usedColors = new Set(), manyShown = false, lastSay = 0;
   const bumps = {}, sprites = {};
@@ -76,7 +77,7 @@ export function createPainting(env) {
     showWhole = false;
     undoStack.length = 0;
     startView();
-    paperDirty = true; version++;
+    version++;
     strokes = 0; usedColors = new Set(); manyShown = false;
   }
 
@@ -89,7 +90,7 @@ export function createPainting(env) {
   const syncPlace = () => { place = { cell: view.cell, x: view.ox, y: view.oy, w: current.w * view.cell, h: current.h * view.cell }; };
   function setView(v) {
     const r = range();
-    view = clampView({ cell: clamp(v.cell, r.min, r.max), ox: v.ox, oy: v.oy }, current.w, current.h, W, H);
+    view = clampView({ cell: clamp(v.cell, r.min, r.max), ox: v.ox, oy: v.oy }, current.w, current.h, W, H, wallOver(current.w, current.h, W, H));
     syncPlace();
   }
   function startView() {
@@ -97,6 +98,14 @@ export function createPainting(env) {
     if (showWhole) { setView(tableView()); return; }
     const cell = startCell(current.w, current.h, W, H);
     setView({ cell, ox: Math.round((W - current.w * cell) / 2), oy: 0 }); // centered across, at the top
+    const b = current.bounds();
+    if (!b) return;
+    const seen = (x, y) => x * view.cell + view.ox >= 0 && x * view.cell + view.ox <= W && y * view.cell + view.oy >= 0 && y * view.cell + view.oy <= H;
+    if (seen(b.x0, b.y0) && seen(b.x1 + 1, b.y1 + 1)) return;
+    // paint lies off screen: zoom out and move until all of it is in sight, a little room round it
+    const m = 6 * u, fit = Math.min((W - 2 * m) / (b.x1 - b.x0 + 1), (H - 2 * m) / (b.y1 - b.y0 + 1));
+    const r = range(), c = clamp(fit, r.min, Math.max(cell, r.min));
+    setView(viewAround(c, (b.x0 + b.x1 + 1) / 2, (b.y0 + b.y1 + 1) / 2, W / 2, H / 2, current.w, current.h, W, H));
   }
   const tableView = () => clampView({ cell: range().min, ox: 0, oy: 0 }, current.w, current.h, W, H);
   // Glide the view to v (a clamped view); straight there with reduced motion.
@@ -107,10 +116,10 @@ export function createPainting(env) {
   // Zoom by `factor` keeping the paper under (sx, sy) still.
   function zoomAt(factor, sx, sy) {
     const r = range(), cell = clamp(view.cell * factor, r.min, r.max);
-    anim = null;
+    anim = null; moved();
     setView(viewAround(cell, (sx - view.ox) / view.cell, (sy - view.oy) / view.cell, sx, sy, current.w, current.h, W, H));
   }
-  function panBy(dx, dy) { anim = null; setView({ cell: view.cell, ox: view.ox + dx, oy: view.oy + dy }); }
+  function panBy(dx, dy) { anim = null; moved(); setView({ cell: view.cell, ox: view.ox + dx, oy: view.oy + dy }); }
   // Double tap: from the whole paper, in to a paintable size; from anywhere else, out to the whole paper.
   function toggleZoom(sx, sy) {
     if (view.cell <= range().min * 1.06) {
@@ -149,19 +158,17 @@ export function createPainting(env) {
   }
   function close() {
     chooser.close(); bookPtr = null;
-    active = false; stroke = null; pan = pinch = grow = clearHold = null;
+    active = false; stroke = null; pan = pinch = grow = clearHold = peekTap = null;
     env.store.flush();
   }
 
   /* ---- paper ---- */
-  function renderPaper() {
-    if (!paper || paper.w !== current.w || paper.h !== current.h) paper = new Px(current.w, current.h);
-    const colors = [K(PAPER), ...PAINT.map((c) => K(c.hex))];
-    for (let i = 0; i < current.cells.length; i++) paper.b[i] = colors[current.cells[i]];
-    paper.done();
-    paperDirty = false;
-  }
-  const paperCanvas = () => { if (paperDirty || !paper) renderPaper(); return paper.c; };
+  // A picture of the whole paper (for the glide to the room and the flight to the line), made again only when the painting changed.
+  const paperCanvas = () => {
+    if (!snap || snap.v !== version || snap.p !== current || snap.w !== current.w || snap.h !== current.h) snap = { v: version, p: current, w: current.w, h: current.h, c: paperToCanvas(current) };
+    return snap.c;
+  };
+  const moved = () => { movedAt = env.now(); };
 
   /* ---- painting ---- */
   const cellAt = (x, y, force) => {
@@ -172,11 +179,12 @@ export function createPainting(env) {
   function endStroke() {
     if (!stroke) return;
     const quick = stroke.len <= 1 && env.now() - stroke.t0 < 250;
-    lastTap = quick ? { t: env.now(), x: stroke.x0, y: stroke.y0, before: stroke.before } : null; // a possible first half of a double tap
     if (stroke.stamp) putStamp(current, stampArt(stampId, stampSize), stroke.at[0], stroke.at[1]); // lands where the finger lifts
-    pushUndo({ w: current.w, h: current.h, cells: stroke.before });
+    const step = current.endJournal(current.size());
+    pushUndo(step);
+    lastTap = quick ? { t: env.now(), x: stroke.x0, y: stroke.y0, step } : null; // a possible first half of a double tap
     const stamped = stroke.stamp;
-    stroke = null; paperDirty = true; version++; persist(); strokes++;
+    stroke = null; version++; persist(); strokes++;
     if (stamped) { if (strokes === 1) say(LINES.first); else if (env.now() - lastSay > 4000) say(pick(LINES.stampDone)); return; }
     if (tool !== 'cloth') usedColors.add(color);
     const now = env.now();
@@ -237,8 +245,8 @@ export function createPainting(env) {
       return; // never paint through the tray
     }
     if (opts && opts.pan) { anim = null; pan = { x, y, ox: view.ox, oy: view.oy }; trayOpen = false; return; }
-    for (const tab of peekOn()) if (inRect(tab.hit, x, y)) { // an arrow on the screen edge: glide out to where the paper can be pulled
-      trayOpen = false; env.sound.play('tab'); animateTo(tableView());
+    for (const tab of peekOn()) if (inRect(tab.hit, x, y)) { // an arrow on the screen edge: a tap (let go in place) glides out to where the paper can be pulled
+      peekTap = { t: env.now(), x, y }; // a finger that lands here to scroll with a second one must not zoom out
       return;
     }
     for (const tab of tabsOn()) if (inRect(tab.hit, x, y)) { // pull more paper out
@@ -249,7 +257,7 @@ export function createPainting(env) {
     }
     const t = env.now();
     if (lastTap && t - lastTap.t < 320 && Math.hypot(x - lastTap.x, y - lastTap.y) < 28 * u) { // double tap: not two dabs, a zoom
-      current.cells.set(lastTap.before); undoStack.pop(); paperDirty = true; version++; persist();
+      current.restore(lastTap.step); undoStack.pop(); version++; persist();
       lastTap = null; toggleZoom(x, y);
       return;
     }
@@ -257,10 +265,10 @@ export function createPainting(env) {
     if (!c) return;
     trayOpen = false; // starting to paint tucks the tray away
     anim = null;
-    stroke = { last: c, len: 0, before: current.cells.slice(), t0: t, x0: x, y0: y }; // before: lets a second finger or a double tap take the dab back
+    current.beginJournal(); // what the stroke changes is kept, so undo, a second finger or a double tap can take it back
+    stroke = { last: c, len: 0, t0: t, x0: x, y0: y };
     if (tool === 'stamp') { stroke.stamp = true; stroke.at = c; return; } // a stamp only shows where it will land until the finger lifts
     stamp(current, c[0], c[1], tool, color);
-    paperDirty = true;
   }
   // Pulling a tab out adds paper on that side, pushing it in takes bare paper
   // away (never paint). It is like a joystick: the further the finger is from
@@ -270,23 +278,25 @@ export function createPainting(env) {
     const g = grow, side = g.side, v = (k) => (side === k ? n : 0);
     const r = resizeSides(g.base, v('left'), v('top'), v('right'), v('bottom'), g.bounds);
     g.n = r[side[0]]; g.acc = g.n; // what was really done (a cut stops at the paint)
-    current = r.p; paperDirty = true; version++;
+    if (n > 0 && r[side[0]] < n) hint('wall', LINES.wall); // asked for more than the wall allows
+    current = r.p; version++;
     setView(tableView());
   }
   const GROW_RATE = 45; // cells a second with the finger fully pulled
   function pointerMove(x, y) {
     if (inBook) { bookMove(x, y); return; }
     lastPtr = { x, y };
+    if (peekTap && Math.hypot(x - peekTap.x, y - peekTap.y) > 12 * u) peekTap = null;
     if (grow) return; // update() turns the pull into paper
-    if (pan) { anim = null; setView({ cell: view.cell, ox: pan.ox + x - pan.x, oy: pan.oy + y - pan.y }); return; }
+    if (pan) { anim = null; moved(); setView({ cell: view.cell, ox: pan.ox + x - pan.x, oy: pan.oy + y - pan.y }); return; }
     if (!stroke) return;
     const c = cellAt(x, y, true);
     stroke.len++;
     if (stroke.stamp) { stroke.at = c; return; }
     strokeLine(current, stroke.last, c, tool, color);
-    stroke.last = c; paperDirty = true;
+    stroke.last = c;
   }
-  const pushUndo = (snap) => { undoStack.push(snap); if (undoStack.length > 30) undoStack.shift(); };
+  const pushUndo = (step) => { undoStack.push(step); if (undoStack.length > 30) undoStack.shift(); };
   // Go back one step: a stroke, a wipe, or a paper size change.
   function undo() {
     if (stroke || grow || pinch) return;
@@ -294,8 +304,8 @@ export function createPainting(env) {
     const s = undoStack.pop();
     if (!s) { say(LINES.nothingToUndo); return; }
     const resized = s.w !== current.w || s.h !== current.h;
-    current = newPainting(s.w, s.h); current.cells.set(s.cells);
-    paperDirty = true; version++; lastTap = null; persist();
+    current.restore(s);
+    version++; lastTap = null; persist();
     if (resized) { anim = null; setView(tableView()); }
     say(pick(LINES.undone));
   }
@@ -304,20 +314,25 @@ export function createPainting(env) {
   function clearAll() {
     clearHold = null;
     if (isBlank(current)) { say(LINES.alreadyClean); return; }
-    pushUndo({ w: current.w, h: current.h, cells: current.cells.slice() });
-    current.cells.fill(0);
-    paperDirty = true; version++; lastTap = null; persist();
+    current.beginJournal(); current.clear();
+    pushUndo(current.endJournal(current.size()));
+    version++; lastTap = null; persist();
     strokes = 0; usedColors = new Set(); manyShown = false;
     env.sound.play('pop'); say(pick(LINES.cleared));
   }
   function pointerUp() {
     if (inBook) { bookUp(); return; }
     lastPtr = null;
+    if (peekTap) {
+      const tap = peekTap; peekTap = null;
+      if (env.now() - tap.t < 500) { trayOpen = false; env.sound.play('tab'); animateTo(tableView()); }
+      return;
+    }
     if (clearHold) { clearHold = null; say(LINES.clearHint); return; } // let go too soon
     if (grow) {
       const g = grow;
       grow = null;
-      if (g.n !== 0) { pushUndo({ w: g.base.w, h: g.base.h, cells: g.base.cells }); persist(); hint('tabs', LINES.tabsDone); }
+      if (g.n !== 0) { pushUndo({ ...g.base.size(), tiles: new Map() }); persist(); hint('tabs', LINES.tabsDone); }
       return;
     }
     if (pan) { pan = null; return; }
@@ -326,15 +341,16 @@ export function createPainting(env) {
   const leave = () => { say(inBook ? LINES.bookBye : LINES.bye, 2600); env.exit(); };
   // Two fingers: move and zoom the paper. A stroke already under way (a palm
   // resting down) is left alone.
-  const canGesture = () => !inBook && !grow && (!stroke || stroke.len < 8);
+  const canGesture = () => !inBook && !grow && (!stroke || stroke.len < 8 || env.now() - stroke.t0 < 400); // a young stroke is a first finger still settling: the second one is the start of a scroll
   const dist = (a, b) => Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
   function gestureStart(a, b) {
-    if (stroke) { current.cells.set(stroke.before); stroke = null; paperDirty = true; } // a pinch is not a dab
-    pan = null; trayOpen = false; anim = null; lastPtr = null; lastTap = null;
+    if (stroke) { current.restore(current.endJournal(current.size())); stroke = null; version++; } // a pinch is not a dab
+    pan = null; trayOpen = false; anim = null; lastPtr = null; lastTap = null; peekTap = null;
     pinch = { d0: dist(a, b), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, view: { ...view } };
   }
   function gestureMove(a, b) {
     if (!pinch) return;
+    moved();
     const r = range(), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, v = pinch.view;
     const cell = clamp((v.cell * dist(a, b)) / pinch.d0, r.min, r.max);
     // the paper point first under the fingers stays under them
@@ -443,7 +459,7 @@ export function createPainting(env) {
 
   // The painting p (from takeToEasel) is now the one on the easel.
   function putOnEasel(p) {
-    current = p; undoStack.length = 0; paperDirty = true; version++; lineDirty = true; lastTap = null;
+    current = p; undoStack.length = 0; version++; lineDirty = true; lastTap = null;
     strokes = 0; usedColors = new Set(); manyShown = false; reopened = true; showWhole = true;
     persist();
   }
@@ -579,8 +595,11 @@ export function createPainting(env) {
     const k = place.cell, covers = place.x <= k && place.y <= k && place.x + place.w >= W - k && place.y + place.h >= H - k; // within a cell counts: plain paper fills the rest
     c.fillStyle = covers ? PAPER : WOOD_TRIM; // the bare table shows when the paper is smaller than the screen
     c.fillRect(0, 0, W, H);
-    if (!covers) { c.fillStyle = SHADOW; c.fillRect(place.x + 2 * u, place.y + 2 * u, place.w, place.h); }
-    c.drawImage(paperCanvas(), place.x, place.y, place.w, place.h);
+    const wallX = current.w >= MAX_SIDE, wallY = current.h >= MAX_SIDE;
+    if (wallX || wallY) drawWall(c, place, wallX, wallY, W, H, u); // the paper cannot get any bigger: show the wall
+    if (!covers) { c.fillStyle = SHADOW; c.fillRect(place.x + 2 * u, place.y + 2 * u, place.w, place.h); c.fillStyle = PAPER; c.fillRect(place.x, place.y, place.w, place.h); } // tiles only draw paint, so the paper itself is laid down here
+    drawTiles(c, current, place, W, H);
+    if (!grow) drawTicks(c, place, current.w, current.h, W, H, u, 1 - (env.now() - movedAt) / 900); // ruler ticks slide by while scrolling, then fade
     if (grow) drawPullCues(c);
     if (stroke && stroke.stamp) drawStampGhost(c);
     const arrow = (t) => sprite('arrow' + t.side, () => mkArrow({ top: 'up', bottom: 'down', left: 'left', right: 'right' }[t.side]));

@@ -37,8 +37,10 @@ data without both.
   First start with an empty database copies whatever localStorage held (including
   the mockup's v1) into IndexedDB; after that localStorage is not read again.
 - IndexedDB holds far more than localStorage's roughly 5 MB, which matters for
-  big paper. Painting size is limited by the codec (512 a side) and the paper
-  limit in `grid.js` (320).
+  big paper. Painting size is limited by the codec (2048 a side) and the paper
+  limit in `grid.js` (2000). Runs make a mostly bare big paper save to a few bytes. Raising
+  the size limit needs no migration (same format); an app older than this change would
+  drop a painting over 512 a side, which is fine as only newer builds are used.
 - Writes are debounced about 500 ms after a stroke, and flushed when the page
   is hidden or closed. An IndexedDB write begun while the page closes normally
   finishes, but is not guaranteed to.

@@ -19,7 +19,7 @@ Full-screen paper activity. Product rules: [docs/painting.md](../../../docs/pain
 
 Zoom and scroll are a `view` (`{ cell, ox, oy }`, smooth) that `place` is derived
 from; the world forwards pinch (`gestureStart/Move/End`) and wheel input. Pull-out
-tabs and the undo stack are in `index.js` and `art.js`. Tall paintings
+tabs and the undo journal are in `index.js` and `art.js`. The paper is a sparse tile store (`paper.js`), drawn by `paper-art.js` (tiles, scroll ticks). Tall paintings
 hang rolled up (`hangShape` in `clothesline-art.js`).
 
 Saved state: `{ current, hung, book }`, painting codec in `src/save/codec.js`.

@@ -49,5 +49,5 @@ export function takeToEasel(list, i, current, easelIsBlank) {
   const p = list[i];
   if (!p) return null;
   if (easelIsBlank) list.splice(i, 1); else list[i] = current;
-  return { w: p.w, h: p.h, cells: p.cells.slice() };
+  return p.clone();
 }

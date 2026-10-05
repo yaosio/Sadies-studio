@@ -11,12 +11,7 @@ export function paintingToCanvas(p) {
   const c = cv.getContext('2d');
   c.fillStyle = PAPER;
   c.fillRect(0, 0, cv.width, cv.height);
-  for (let y = 0; y < p.h; y++) for (let x = 0; x < p.w; x++) {
-    const v = p.cells[y * p.w + x];
-    if (!v) continue;
-    c.fillStyle = PAINT[v - 1].hex;
-    c.fillRect(x * s, y * s, s, s);
-  }
+  p.forEachPaint((x, y, v) => { c.fillStyle = PAINT[v - 1].hex; c.fillRect(x * s, y * s, s, s); });
   return cv;
 }
 

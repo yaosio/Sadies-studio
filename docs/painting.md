@@ -32,8 +32,8 @@ tabs on the paper.
 
 - **Edge arrows**: while the paper fills the screen the real pull-out tabs are off screen,
   so small arrow tabs sit on the screen edges (left, right, top, and bottom off to the
-  side of the tray tab; the bottom one hides while the tray is open). Pressing one
-  glides out to the table view, where the real tabs are. They hide while painting.
+  side of the tray tab; the bottom one hides while the tray is open). A tap (let go in place within half a second) on one
+  glides out to the table view; a finger that lands there and is joined by a second one scrolls instead, where the real tabs are. They hide while painting.
 - **Default size**: every new painting, on a first start, after hanging one up,
   and when an empty easel is reopened, starts at the default size (the natural
   grid for the screen, `naturalGrid` in `grid.js`). Pulling tabs on a bare easel
@@ -54,14 +54,23 @@ tabs on the paper.
   joystick, not a drag: the further from where the finger grabbed, the faster
   (up to about 45 cells a second), and holding still keeps going, so no long
   swipe is needed. The view keeps the whole paper in sight while it changes.
-  The painting stays where it is on the paper. Paper stops at 320 cells a side.
-  There is no "more paper" button.
+  The painting stays where it is on the paper. Paper stops at 2000 cells a side: that
+  is the **wall**. At the limit the view may scroll a little past the paper's edge, where
+  dark wooden planks show (`drawWall`, `wallOver`), and Sadie says there is no more paper.
+  There is no "more paper" button. Memory: paper is sparse 64x64 tiles
+  (`paper.js`) that exist only once painted on; undo is a journal of the touched tiles; each
+  tile draws from its own cached canvas (`paper-art.js`), so bare space costs nothing.
 - **Moving around**: two fingers drag the paper; mouse wheel, arrow keys or
   right/middle-button drag also work. While painting within about a tenth of the
   screen of an edge of a zoomed paper, the view drifts that way and keeps painting
   under the finger. A second finger that lands while a stroke is already under way
-  is ignored (a resting palm); a one-dab stroke is taken back when it turns out to
-  be a pinch.
+  is ignored (a resting palm) once that stroke is over 8 moves and 0.4 s old; a younger
+  stroke is taken back when a second finger turns it into a scroll or pinch.
+- **Opening a painting**: the view starts at the usual zoom; if any paint would be off
+  screen it zooms out and centers on the paint so all of it is in sight (`startView`).
+- **Scroll ticks**: while panning or zooming, ruler ticks (every 10 cells, longer every 50)
+  show on all four screen edges, fixed to the paper, and fade out after ~1 s (`drawTicks`).
+  Skipped when zoomed out so far they would crowd. No dots across the screen.
 - While a tab is held, new paper is tinted yellow and tick marks every 10 cells run along the pulled edges (the only scale cue; there is no grid).
 - Sadie explains pinch/double tap and the tabs the first time each is used.
 - Code: view math in `grid.js` (`zoomRange`, `startCell`, `clampView`, `edgeTabs`,
