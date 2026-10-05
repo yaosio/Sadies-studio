@@ -40,7 +40,7 @@ for (const size of SIZES) {
   const tray = await page.evaluate(() => { const t = window.__studio.activity('painting')._tray(), s = window.__studio.debug(); return { tab: t.tab, H: s.H, S: s.S }; });
   await page.mouse.click(((tray.tab.x + tray.tab.w / 2) * tray.S) / size.dpr, ((tray.H - tray.tab.h / 2) * tray.S) / size.dpr);
   await page.waitForFunction(() => window.__studio.activity('painting')._state().trayOpen);
-  await page.waitForTimeout(300);
+  await page.waitForFunction(() => window.__studio.activity('painting')._state().trayAnim >= 1);
   await page.evaluate(() => { const b = document.getElementById('bubble'); b.hidden = true; }); // speech timing is not what this checks
   await shot('painting-tray');
 

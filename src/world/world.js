@@ -302,7 +302,7 @@ export function createWorld(opts) {
   function draw(T, t) {
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.imageSmoothingEnabled = false;
-    if (mode === 'painting') { activities[activeId].draw(c, t); return; }
+    if (mode === 'painting') { activities[activeId].draw(c, still ? 0 : t); return; }
     c.fillStyle = WOOD_TRIM;
     c.fillRect(0, 0, W, H);
     const z = cam.z, ox = Math.round(-cam.x * z), oy = Math.round(-cam.y * z);

@@ -263,7 +263,7 @@ export function createPainting(env) {
     snapshot: paperCanvas, // full-size picture of the easel painting
     paperRect: () => place, // where the paper sits on screen when open
     boardFit: (bw, bh) => fitRect(current.w, current.h, bw, bh),
-    _state: () => ({ current, hung, tool, color, trayOpen }), // for tests
+    _state: () => ({ current, hung, tool, color, trayOpen, trayAnim }), // for tests
     _tray: () => tray,
   };
 }
