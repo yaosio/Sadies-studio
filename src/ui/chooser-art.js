@@ -67,21 +67,21 @@ export function drawTargetFrame(c, t, u) {
   c.fillRect(t.x - e, t.y, e, t.h); c.fillRect(t.x + t.w, t.y, e, t.h);
 }
 
-// A ring of dots that fills in clockwise from the top while a finger is held (progress 0..1).
-// (cx, cy) is its middle, drawn in pixel steps like everything else.
+// A big ring of dots, centered on the touch, that fills in clockwise from the top while a
+// finger is held (progress 0..1). It is wider than a finger so a large fingertip cannot cover it.
 export function drawHoldRing(c, cx, cy, u, progress) {
-  const n = 16, r = 9 * u, d = 3 * u, lit = Math.floor(Math.min(1, progress) * n + 0.0001);
-  c.fillStyle = 'rgba(42,34,56,.55)';
-  c.fillRect(Math.round(cx - r - 3 * u), Math.round(cy - r - 3 * u), Math.round(2 * r + 6 * u), Math.round(2 * r + 6 * u));
+  const n = 24, r = 22 * u, d = 4 * u, e = u, lit = Math.floor(Math.min(1, progress) * n + 0.0001);
   for (let k = 0; k < n; k++) {
     const a = (k / n) * Math.PI * 2 - Math.PI / 2, x = Math.round(cx + Math.cos(a) * r - d / 2), y = Math.round(cy + Math.sin(a) * r - d / 2);
-    c.fillStyle = k < lit ? '#ffd60a' : 'rgba(255,255,255,.35)';
+    c.fillStyle = 'rgba(42,34,56,.8)';
+    c.fillRect(x - e, y - e, d + 2 * e, d + 2 * e);
+    c.fillStyle = k < lit ? '#ffd60a' : '#ffffff';
     c.fillRect(x, y, d, d);
   }
 }
 
-// Where the hold ring sits for a finger at (x, y): below it, out from under the hand (above only when there is no room below).
+// Where the hold ring is centered for a finger at (x, y): on the touch, nudged in so the whole ring stays on screen.
 export function holdRingSpot(x, y, W, H, u) {
-  const off = 26 * u, below = y + off <= H - 12 * u;
-  return { x: Math.max(12 * u, Math.min(W - 12 * u, x)), y: below ? y + off : y - off };
+  const m = 26 * u;
+  return { x: Math.max(m, Math.min(W - m, x)), y: Math.max(m, Math.min(H - m, y)) };
 }

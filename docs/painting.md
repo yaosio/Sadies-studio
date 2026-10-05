@@ -106,9 +106,9 @@ and the painting is there at its own size. The painting that was on the easel ta
 place on the line (a bare easel just gives way), so nothing is lost. Hanging it again
 puts it at the end of the line, or in the book when the line is full.
 
-**Hold a hung painting** (about 0.65 s). Right after the finger lands, a ring of dots fills
-in clockwise *below* the finger (so the hand does not cover it) to show that holding does
-something; at the end the rest of the screen dims and three big
+**Hold a hung painting** (about 0.65 s). Right after the finger lands, a big ring of dots
+(wider than a fingertip, so a large finger cannot cover it) fills in clockwise around the
+touch to show that holding does something; at the end the rest of the screen dims and three big
 wooden buttons, pictures only, appear under it: **save** (a down arrow, offers the
 PNG), **to the book** (a closed book), **delete** (a trash can). Delete has no undo,
 so the trash must be *held* (about 0.9 s, red water rises in it, like the bucket); a

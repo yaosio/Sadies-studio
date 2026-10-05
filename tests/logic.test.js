@@ -344,7 +344,6 @@ test('edge arrows and the hold ring stay on screen', () => {
       const r = holdRingSpot(x, y, W, H, u);
       assert.ok(r.x >= 0 && r.x <= W && r.y >= 0 && r.y <= H);
     }
-    assert.ok(holdRingSpot(100, 100, W, H, u).y > 100, 'below the finger when there is room');
-    assert.ok(holdRingSpot(100, H - 5, W, H, u).y < H - 5, 'above only when there is no room below');
+    assert.deepEqual(holdRingSpot(100, 100, W, H, u), { x: 100, y: 100 }, 'centered on the touch when there is room');
   }
 });

@@ -404,7 +404,7 @@ export function createPainting(env) {
     bookScroll = clampScroll(lay, bookScroll);
     drawBookPage(c, W, H, u, book, lay, bookScroll);
     const b = bookPtr;
-    if (b && !b.moved && b.i >= 0 && !chooser.isOpen() && env.now() - b.t0 > HOLD_RING_DELAY_MS) { // a hold is filling in: show it below the finger
+    if (b && !b.moved && b.i >= 0 && !chooser.isOpen() && env.now() - b.t0 > HOLD_RING_DELAY_MS) { // a hold is filling in: show the ring around the touch
       const r = holdRingSpot(b.x, b.y, W, H, u);
       drawHoldRing(c, r.x, r.y, u, (env.now() - b.t0) / LONG_PRESS_MS);
     }

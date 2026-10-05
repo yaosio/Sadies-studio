@@ -160,7 +160,7 @@ so) or **proposed** (a default picked, awaiting the user).
   Risk: one storage record grows with it (see saving.md "Not built yet").
 
 - [confirmed] Tapping a hung painting (examples included) opens it on the easel to paint on;
-  holding it shows a filling ring below the finger; the easel shows edge arrows at the
+  holding it shows a big filling ring centered on the touch, wide enough that a large finger cannot cover it; the easel shows edge arrows at the
   default zoom so the child knows the paper can be resized (user, 2026-10-05).
 - [proposed] Opening a painting swaps it with the one on the easel (same place on the line or
   in the book; a bare easel just gives way). Reason: nothing is ever lost. Alternative: ask,
