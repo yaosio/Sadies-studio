@@ -12,8 +12,7 @@ frame. The only things on top are small and tucked away:
 - **A door** in the top-left corner, drawn faint, to go back to the room
   (Escape does the same). Leaving glides back out to the easel.
 - **A tab** at the bottom center, showing the chosen paint. Tapping it slides up
-  the **tray** (a wooden shelf along the bottom: tools, "hang it up", paint
-  pots). Starting to paint tucks the tray away again. The tray covers paper
+  the **tray** (a wooden shelf along the bottom, see "The tray" below). Starting to paint tucks the tray away again. The tray covers paper
   only while it is open.
 
 ## The canvas
@@ -68,26 +67,58 @@ tabs on the paper.
 - Code: view math in `grid.js` (`zoomRange`, `startCell`, `clampView`, `edgeTabs`,
   `growSides`), gestures and tabs in `index.js`, touch routing in `src/world/world.js`.
 
-## Tools (physical objects on the tray shelves)
+## The tray: three drawers, one bottom shelf
 
-- **Paint pots** (10): tap one to choose a color.
+Everything the child can pick lives on the wooden tray, in **drawers** so the tray never
+grows past a few rows however many things are added. The bottom shelf never changes:
+three drawer knobs (**paints**: a paint board, **tools**: a brush, **stamps**: a rubber
+stamp) and **undo**, the **bucket** and **hang it up**. Tapping a drawer puts that
+drawer's things on the shelf above (on wide screens, in the same row between the knobs
+and the actions). The open drawer is remembered while the app runs, and starts as paints.
+On a narrow screen a drawer wraps after five things: paints take two rows, tools and stamps one. Pictures only.
+Code: `tray.js` (layout, pure; `DRAWER_ITEMS` is what each drawer holds).
+
+To add a thing, add it to a drawer's list, give it a sprite and a line for Sadie. To add a
+drawer, add it to `DRAWER_IDS`/`DRAWER_ITEMS`: with up to about 5 drawers the bottom shelf
+still fits; beyond that, the shelf needs sideways scrolling (not built).
+
+## Tools and paints
+
+- **Paint pots** (10): tap one to choose a color. Choosing one while holding the cloth or a
+  stamp switches back to the big brush.
 - **Small brush** (radius 1), **big brush** (radius 2).
-- **Undo** (key Ctrl+Z): steps back one thing at a time, up to 30: a stroke, a wipe,
+- **Undo** (key Ctrl+Z): steps back one thing at a time, up to 30: a stroke, a stamp, a wipe,
   or a paper size change (undoing a size change shows the table view). Not saved:
   it starts empty on every new painting and after a reload.
 - **Bucket**: hold it (about 0.9 s, water rises in it) to wipe every bit of paint
   off the working paper. The paper keeps its size. A quick touch only makes Sadie
   explain. Undo brings it back.
 - **Sponge**: dabs, random partial coverage.
-- **Cloth**: erases to paper. Choosing a pot while holding the cloth switches
-  back to the big brush.
+- **Cloth**: erases to paper.
 - **Hang it up** (a peg): flies the painting to the clothesline and clears the
   easel. Does nothing but make Sadie remark if the paper is bare.
 
-The tray is one row on wide screens and three rows on narrow ones (the short
-last row is centered).
 Strokes are continuous (lines between pointer samples, coalesced events used).
 Only one finger paints; a second touch is ignored so a resting palm does not.
+
+## Stamps
+
+Two so far: **Sadie** and **Chooter** (the dog, black with a little white on the chest
+and front paws). The stamps drawer holds them, then **size** (three steps, shown as three
+growing squares: 1x, 2x, 3x the picture, starting at 1x) and **flip** (turn left to right).
+Choosing a stamp makes it the tool until a paint pot or another tool is chosen.
+
+Press on the paper: the stamp shows, a little see-through, centered under the finger, and
+follows it. It is **painted when the finger lifts**, so a fat fingertip can slide it into
+place first. Two fingers (pinch) cancel it. A quick tap then a second tap zooms and
+takes the stamp back, like any dab. It cannot be moved afterwards (user's choice: one
+more thing to learn): undo and stamp again.
+
+A stamp is **ordinary paint**: each picture is a map of paint values in its own colors
+(`stamps.js`; gray is a black and white checker, see-through cells leave paper alone). So
+undo, autosave, the saved format, the PNG and the clothesline need nothing extra. A stamp is
+one undo step. To add a stamp, add a map to `STAMPS`, a line in `lines.js`; the drawer picks
+it up, wrapping to a second row after five things on a narrow screen.
 
 ## Clothesline
 

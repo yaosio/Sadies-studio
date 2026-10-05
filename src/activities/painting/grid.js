@@ -144,3 +144,15 @@ export function strokeLine(p, from, to, toolId, color, rand = Math.random) {
     if (e2 <= dx) { e += dx; y0 += sy; }
   }
 }
+
+// Put a stamp (see stamps.js) on the paper, its middle at cell (cx, cy). See-through
+// cells leave the paper alone and anything off the edge is dropped.
+export function putStamp(p, art, cx, cy) {
+  const x0 = cx - (art.w >> 1), y0 = cy - (art.h >> 1);
+  for (let j = 0; j < art.h; j++) {
+    for (let i = 0; i < art.w; i++) {
+      const v = art.cells[j * art.w + i], x = x0 + i, y = y0 + j;
+      if (v && x >= 0 && y >= 0 && x < p.w && y < p.h) p.cells[y * p.w + x] = v;
+    }
+  }
+}

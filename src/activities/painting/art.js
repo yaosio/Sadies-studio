@@ -2,6 +2,8 @@
 // the peg for "hang it up", the door back to the room, and the wooden tray.
 // Drawn in code. Colors here are the art's own swatches (see docs/art-style.md).
 import { Px, mixh, rng } from '../../art/px.js';
+import { PAINT } from '../../art/palette.js';
+import { stampArt } from './stamps.js';
 
 export function mkPot(col){const p=new Px(22,24),dk=mixh(col,'#2a1840',.5),lt=mixh(col,'#ffffff',.5);
   for(let y=8;y<23;y++){const ins=y>19?y-19:0;for(let x=2+ins;x<20-ins;x++){const t=(x-2)/17;let c=t>.74?'#d4cbe8':t<.18?'#ffffff':'#f3efff';if(y>=13&&y<=16)c=t>.74?dk:t<.18?lt:col;p.p(x,y,c)}}
@@ -95,4 +97,46 @@ export function drawHandle(c, x, y, w, h, u, paint, chevron) {
   c.fillStyle = paint; c.fillRect(cx - 3 * u, cy - 3 * u, 6 * u, 6 * u);
   c.fillStyle = 'rgba(255,255,255,.5)'; c.fillRect(cx - 3 * u, cy - 3 * u, 2 * u, 2 * u);
   c.drawImage(chevron, x + w - 14 * u, cy - 2 * u, 5 * u * 1, 5 * u * 1);
+}
+
+// Drawer knobs on the bottom shelf: a paint board, a brush, a rubber stamp.
+export function mkDrawerPaints() {
+  const p = new Px(22, 24);
+  for (let y = 6; y < 20; y++) { const ins = y < 9 ? 9 - y : y > 16 ? y - 16 : 0; p.r(1 + ins, y, 20 - 2 * ins, 1, '#e8b070'); }
+  p.r(3, 8, 16, 1, '#f6d09a');
+  [[5, 9, 0], [10, 8, 2], [15, 10, 4], [6, 14, 3], [12, 14, 6], [16, 15, 1]].forEach(([x, y, i]) => p.r(x, y, 3, 3, PAINT[i].hex));
+  p.r(1, 15, 3, 3, null); p.outline('#6e3e1e'); return p.done();
+}
+export function mkDrawerTools() { return mkBrush(true, '#ec3b3b'); }
+export function mkDrawerStamps() {
+  const p = new Px(22, 24);
+  p.r(8, 2, 6, 3, '#c97a3a'); p.r(9, 5, 4, 7, '#e09a58'); p.r(9, 5, 1, 7, '#f2bc7c');
+  p.r(3, 12, 16, 4, '#e09a58'); p.r(3, 12, 16, 1, '#f2bc7c');
+  p.r(2, 16, 18, 4, '#ec3b3b'); p.r(2, 16, 18, 1, '#ff8a7a');
+  p.r(10, 17, 2, 2, '#ffffff'); p.r(8, 18, 1, 1, '#ffffff'); p.r(13, 18, 1, 1, '#ffffff');
+  p.outline('#6e3e1e'); return p.done();
+}
+// A stamp's picture, standing on the shelf (id from stamps.js).
+export function mkStampThumb(id, flip = false) {
+  const a = stampArt(id, 1, flip), p = new Px(a.w, a.h);
+  for (let i = 0; i < a.cells.length; i++) if (a.cells[i]) p.p(i % a.w, Math.floor(i / a.w), PAINT[a.cells[i] - 1].hex);
+  return p.done();
+}
+// How big the stamp is: three squares, the chosen size (1 to 3) in ink.
+export function mkStampSize(step) {
+  const p = new Px(22, 24);
+  const sizes = [4, 6, 8], xs = [1, 6, 13];
+  [0, 1, 2].forEach((i) => {
+    const s = sizes[i], on = i + 1 <= step, x = xs[i], y = 21 - s;
+    p.r(x, y, s, s, on ? '#8b4fe0' : '#d4cbe8');
+    p.r(x, y, s, 1, on ? '#b88cf0' : '#ece7f6');
+  });
+  p.outline('#4b3a5e'); return p.done();
+}
+// Which way round the stamp faces: two arrows pointing apart.
+export function mkStampFlip() {
+  const p = new Px(22, 24);
+  p.r(10, 4, 2, 18, '#d4cbe8');
+  for (let k = 0; k < 6; k++) { p.r(2 + k, 13 - k, 1, 2 * k + 1, '#3d78c4'); p.r(19 - k, 13 - k, 1, 2 * k + 1, '#3d78c4'); }
+  p.outline('#23406a'); return p.done();
 }

@@ -177,6 +177,19 @@ so) or **proposed** (a default picked, awaiting the user).
   settings; the user applied it on 2026-10-05.)
 
 - [confirmed] A painting taken from the line or book opens on the easel with the whole painting in view (table view), not zoomed in (user, 2026-10-05).
+- [confirmed] The tray is three drawers (paints, tools, stamps) over a fixed bottom shelf of
+  the drawer knobs, undo, bucket and hang it up. Reason: stamps would have made one shelf
+  of 25+ things; each drawer holds about five and the tray stays small (user chose "drawers"
+  from three options, 2026-10-05).
+- [confirmed] Stamps cannot be moved after they are placed; undo and stamp again. Reason:
+  one less thing for the child to learn (user, 2026-10-05). Two stamps to start: Sadie and
+  Chooter the dog (black, a little white on the chest and front paws).
+- [proposed] A stamp is painted into the paint grid in its own colors when the finger lifts
+  (a ghost shows where it will land), so undo, saving, the PNG and the clothesline need no
+  change and the saved format stays version 2. Alternative: a separate movable stamp layer
+  (needs a saved-format change). Sizes 1x, 2x, 3x the picture, starting at 1x; flip, no rotate.
+- [proposed] Sadie's gray in the stamp is a black and white checker (the palette has no
+  gray). Chooter has a blue collar. Both are first drawings; the user may want changes.
 
 ## Open questions
 
@@ -193,5 +206,8 @@ so) or **proposed** (a default picked, awaiting the user).
 - Should the book ever have a limit, pages or sorting (by date, by color)? Today it is one
   endless scrolling grid, oldest first.
 - Should hanging from the book with a full line offer to swap with one on the line?
+- Does a stamp need to stay clear of a fat fingertip while placing (shown above the finger on
+  touch) or is centered under it fine? Needs a try on a real phone.
+- Which stamps next, and should a drawer grow a second page after about 8?
 
 The full checklist is in [engineering.md](engineering.md).
