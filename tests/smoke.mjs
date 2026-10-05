@@ -110,7 +110,7 @@ for (const target of targets) {
   await page.mouse.move(200, 150); await page.mouse.down(); await page.mouse.move(400, 160); await page.mouse.up();
   assert.equal((await st()).trayOpen, false, 'tray tucked away');
 
-  // stamps: open the stamps drawer, pick Chooser the dog, make him bigger. He shows where he will land
+  // stamps: open the stamps drawer, pick Chooter the dog, make him bigger. He shows where he will land
   // while the finger is down and is only painted when it lifts; undo takes him back.
   const cellsPainted = () => page.evaluate(() => window.__studio.activity('painting')._state().current.cells.filter(Boolean).length);
   await page.waitForTimeout(400);
