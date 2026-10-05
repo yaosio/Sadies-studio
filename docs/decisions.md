@@ -93,13 +93,14 @@ so) or **proposed** (a default picked, awaiting the user).
   under key `sadies-studio`; the mockup's v1 is migrated. See saving.md.
 - [proposed] Objects, pots and tools make small sounds when touched. Nothing
   plays by itself except Sadie's one trill at the start.
-- [confirmed] Paper size and zoom: a paper pad on a bare easel opens a shelf of
-  sheet pictures, paper only ever grows (nothing shrinks once painting starts),
-  zoom is pinch, double tap, wheel or keys (view only, no tray icons for it), and
-  more paper is pulled out (and bare paper pushed in) by tabs on the paper's edges in the whole-paper view.
-  Reason: the first version's tray icons (hand, magnifier, plus) were confusing
-  (user, 2026-10-05). Works with touch and mouse. Old paintings need no care: the
-  user is the only user.
+- [confirmed] Paper size and zoom: zoom is pinch, double tap, wheel or keys (view
+  only), and the paper is grown or shrunk by tabs on its edges in the whole-paper
+  view. No paper controls in the tray (the sheet pad, hand, magnifier and plus
+  icons were all confusing, user 2026-10-05). Works with touch and mouse. Old
+  paintings need no care: the user is the only user.
+- [confirmed] A new painting always starts at the default size (the natural grid for
+  the screen). The sheet shapes (tall, wide, big, small) were dropped. Reason: they
+  changed the default size.
 - [confirmed] Zoom and scroll are smooth, not snapped to whole cells (the paper
   only). Reason: the user's choice. Relaxes the whole-number rule for this one case.
 - [confirmed] Grid dots: off by default, switchable, saved; never shown when off.
@@ -109,12 +110,11 @@ so) or **proposed** (a default picked, awaiting the user).
   but only through bare paper (never paint). The tabs are big and act like a
   joystick (hold to keep going). Reason: swiping to the screen edge was hard on a
   phone.
-- [confirmed] Hung paintings are on the wall, behind everything; only the easel
-  paper and Sadie are in front. Reason: a tall one hung over the easel.
+- [confirmed] Hung paintings are on the wall, behind everything; the whole easel
+  (frame and legs) and Sadie are in front. Reason: a tall one hung over the easel.
 - [confirmed] A very tall painting hangs and then rolls up where it would reach the
   floor. Reason: the user's idea. Wide ones just hang shorter.
-- [proposed] Tall and wide sheets are 3:1 (not 2:1: a phone's own screen is
-  about 2.2:1). Paper stops growing at 320 cells a side. Zoom stops at 32 canvas
+- [proposed] Paper stops growing at 320 cells a side. Zoom stops at 32 canvas
   pixels per cell. A double tap within 28 art pixels and about a third of a second
   zooms instead of dabbing twice.
 - [proposed] Paintings are stored in IndexedDB (one record per activity), with

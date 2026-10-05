@@ -6,7 +6,7 @@ import { join, relative } from 'node:path';
 import { encodeCells, decodeCells, encodePainting, decodePainting } from '../src/save/codec.js';
 import { migrate, emptySave, CURRENT_VERSION } from '../src/save/migrate.js';
 import { createStore, openStore, KEY } from '../src/save/store.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, PAPER_IDS, paperGrid, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, MAX_CELL } from '../src/activities/painting/grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, MAX_CELL } from '../src/activities/painting/grid.js';
 import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
 import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
 import { layoutTray, ITEM_IDS } from '../src/activities/painting/tray.js';
@@ -93,18 +93,6 @@ test('grid fits the screen with whole-number cells', () => {
   assert.equal(p.cell, 2); assert.equal(p.y, 150);
 });
 
-test('every sheet of paper is a sane size on every screen', () => {
-  for (const [W, H] of [[150, 300], [260, 563], [640, 360], [900, 360], [2000, 1000]]) {
-    for (const id of PAPER_IDS) {
-      const g = paperGrid(id, W, H);
-      assert.ok(g.w >= MIN_SIDE && g.w <= MAX_SIDE && g.h >= MIN_SIDE && g.h <= MAX_SIDE, `${id} on ${W}x${H}: ${g.w}x${g.h}`);
-    }
-  }
-  const tall = paperGrid('tall', 260, 563), wide = paperGrid('wide', 260, 563);
-  assert.ok(tall.h === tall.w * 3 && wide.w === wide.h * 3);
-  assert.ok(paperGrid('big', 640, 360).w > paperGrid('screen', 640, 360).w && paperGrid('small', 640, 360).w < paperGrid('screen', 640, 360).w);
-});
-
 test('paper grows and shrinks around the painting but never cuts paint', () => {
   const p = newPainting(30, 20);
   stamp(p, 10, 8, 'brushS', 2);
@@ -129,8 +117,8 @@ test('paper grows and shrinks around the painting but never cuts paint', () => {
 
 test('zoom is smooth, keeps the paper in reach, and the table view leaves room for the tabs', () => {
   for (const [W, H] of [[150, 300], [260, 563], [640, 360], [900, 360]]) {
-    for (const id of PAPER_IDS) {
-      const g = paperGrid(id, W, H), m = 24, r = zoomRange(g.w, g.h, W, H, m);
+    for (const g of [naturalGrid(W, H), { w: 54, h: 162 }, { w: 162, h: 54 }, { w: MAX_SIDE, h: MAX_SIDE }, { w: 12, h: 12 }]) {
+      const id = g.w + 'x' + g.h, m = 40, r = zoomRange(g.w, g.h, W, H, m);
       assert.ok(r.min > 0 && r.min <= r.max && r.max >= MAX_CELL);
       const start = startCell(g.w, g.h, W, H);
       assert.ok(Number.isInteger(start) && start >= r.min && start <= r.max, 'opens at a whole-number cell inside the range');
@@ -214,10 +202,6 @@ test('tray fits the screen at every shape', () => {
     assert.equal(t.items.length, ITEM_IDS.length);
     assert.ok(t.panelH <= H * 0.3, `tray stays a small part of ${W}x${H}`);
     for (const it of t.items) assert.ok(it.hit.x >= 0 && it.hit.x + it.hit.w <= W, 'item inside the screen');
-    const bare = layoutTray(W, H, u, { paper: true, picker: true }), painted = layoutTray(W, H, u, { paper: false });
-    assert.ok(bare.items.filter((i) => i.k.startsWith('sheet:')).length === 5 && bare.items.some((i) => i.k === 'paper'), 'sheet shelf on a bare easel');
-    assert.ok(!painted.items.some((i) => i.k === 'paper'), 'no paper pad once painted');
-    for (const it of bare.items) assert.ok(it.hit.x >= 0 && it.hit.x + it.hit.w <= W && it.hit.y >= H - bare.panelH - 2, 'picker items inside the tray');
   }
 });
 

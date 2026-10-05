@@ -23,24 +23,6 @@ export function naturalGrid(W, H) {
   return { cell, w: clamp(Math.floor(W / cell), MIN_SIDE, MAX_SIDE), h: clamp(Math.floor(H / cell), MIN_SIDE, MAX_SIDE) };
 }
 
-// The sheets of paper the child can pick on a bare easel, in the order the
-// paper stack cycles through them.
-export const PAPER_IDS = ['screen', 'big', 'tall', 'wide', 'small'];
-const LONG_SIDE = 3; // tall and wide sheets are this many times longer than they are across
-const gridAcross = (n, W, H) => {
-  const cell = Math.max(1, Math.floor(Math.min(W, H) / n));
-  return { w: clamp(Math.floor(W / cell), MIN_SIDE, MAX_SIDE), h: clamp(Math.floor(H / cell), MIN_SIDE, MAX_SIDE) };
-};
-// Grid size (cells) of a fresh sheet of paper for a W x H screen.
-export function paperGrid(id, W, H) {
-  if (id === 'small') return gridAcross(36, W, H);
-  if (id === 'big') return gridAcross(108, W, H);
-  if (id === 'tall') return { w: SHORT_SIDE_CELLS, h: SHORT_SIDE_CELLS * LONG_SIDE };
-  if (id === 'wide') return { w: SHORT_SIDE_CELLS * LONG_SIDE, h: SHORT_SIDE_CELLS };
-  const g = naturalGrid(W, H);
-  return { w: g.w, h: g.h };
-}
-
 // The smallest a sheet can be shrunk to, in cells.
 export const MIN_PAPER = 12;
 // The box (x0, y0, x1, y1, inclusive) around all the paint, or null if bare.
@@ -74,7 +56,7 @@ export function resizeSides(p, l, t, r, b, bounds = paintBounds(p)) {
 // Zoom is smooth: any cell size (canvas pixels per paint cell) between the
 // "table view" (the whole paper with a margin round it, for the pull-out tabs)
 // and MAX_CELL.
-export const fitCell = (gw, gh, W, H, margin = 0) => Math.max(0.25, Math.min((W - 2 * margin) / gw, (H - 2 * margin) / gh));
+export const fitCell = (gw, gh, W, H, margin = 0) => Math.max(0.05, Math.min((W - 2 * margin) / gw, (H - 2 * margin) / gh));
 // The zoom a sheet opens at: the smallest whole-number cell that is comfortable
 // to paint with and covers the whole screen, so no bars show while painting.
 export function startCell(gw, gh, W, H) {

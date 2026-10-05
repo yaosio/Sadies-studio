@@ -7,10 +7,10 @@ import { PAPER, PAINT, WOOD_TRIM, SHADOW } from '../../art/palette.js';
 import { encodePainting, decodePainting } from '../../save/codec.js';
 import { pick, easeOut } from '../../engine/util.js';
 import { TOOLS, DEFAULT_TOOL } from './tools.js';
-import { newPainting, isBlank, placeGrid, stamp, strokeLine, MAX_HUNG, PAPER_IDS, paperGrid, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MAX_HUNG, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
 import { fitRect, fitted } from './thumb.js';
 import { layoutTray, inRect } from './tray.js';
-import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkPaper, mkGridIcon, mkArrow, drawEdgeTab, drawGridDots, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
+import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkGridIcon, mkArrow, drawEdgeTab, drawGridDots, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
 import { savePng } from './export.js';
@@ -25,12 +25,11 @@ export function createPainting(env) {
   let hung = []; // paintings on the clothesline, oldest first
   let hangingIndex = -1; // a painting still flying to the line
   let tool = DEFAULT_TOOL, color = 0;
-  let paperId = PAPER_IDS[0]; // the sheet a bare easel gets (see grid.js)
   let grid = false; // grid dots: off unless switched on (they also show while the view moves)
   let view = { cell: 1, ox: 0, oy: 0 }; // zoom and scroll: cell size, and where the paper's corner is on screen
   let anim = null, movedAt = -1e9; // a smooth move of the view, and when the view last moved
   let pan = null, pinch = null, grow = null, lastPtr = null, lastTap = null;
-  let pickerOpen = false, trayKey = '', blankAt = -1, blankNow = true;
+  let trayKey = '';
   const hinted = {};
   let W = 0, H = 0, u = 1, place = null, tray = null;
   let paper = null, paperDirty = true, version = 0;
@@ -55,7 +54,7 @@ export function createPainting(env) {
   }
 
   function freshPainting() {
-    const g = paperGrid(paperId, W, H);
+    const g = naturalGrid(W, H); // a new painting always starts at the default size
     current = newPainting(g.w, g.h);
     startView();
     paperDirty = true; version++;
@@ -105,9 +104,8 @@ export function createPainting(env) {
   function hint(key, line) { if (hinted[key]) return; hinted[key] = true; say(line); }
 
   function refreshTray() {
-    if (blankAt !== version) { blankNow = isBlank(current); blankAt = version; }
-    const picker = pickerOpen && blankNow, key = [W, H, u, blankNow, picker].join();
-    if (key !== trayKey) { trayKey = key; tray = layoutTray(W, H, u, { paper: blankNow, picker }); }
+    const key = [W, H, u].join();
+    if (key !== trayKey) { trayKey = key; tray = layoutTray(W, H, u); }
   }
 
   function resize(w, h, unit) {
@@ -116,14 +114,14 @@ export function createPainting(env) {
     if (active) setView(view); else startView();
     trayKey = ''; refreshTray();
   }
-  // Before the glide in: an empty easel adopts the sheet picked, shaped for this screen.
+  // Before the glide in: an empty easel goes back to the default size, shaped for this screen.
   function prepare() {
-    const g = paperGrid(paperId, W, H);
+    const g = naturalGrid(W, H); // a new painting always starts at the default size
     if (isBlank(current) && (current.w !== g.w || current.h !== g.h)) freshPainting();
     startView();
   }
   function open() {
-    active = true; trayOpen = false; trayAnim = 0; stroke = null; pan = pinch = grow = null; pickerOpen = false;
+    active = true; trayOpen = false; trayAnim = 0; stroke = null; pan = pinch = grow = null;
     say(pick(LINES.easel));
   }
   function close() {
@@ -181,12 +179,6 @@ export function createPainting(env) {
     } else if (k === 'grid') {
       grid = !grid; moved(); persist();
       env.sound.play('tool'); say(grid ? LINES.gridOn : LINES.gridOff);
-    } else if (k === 'paper') {
-      pickerOpen = !pickerOpen; refreshTray(); env.sound.play('tool');
-    } else if (k.startsWith('sheet:')) {
-      paperId = k.slice(6); pickerOpen = false; trayOpen = false;
-      freshPainting(); refreshTray();
-      env.sound.play('tool'); say(LINES.paper[paperId]);
     } else if (k === 'hang') {
       if (isBlank(current)) { env.sound.play('tool'); say(LINES.empty); } else env.hang();
     }
@@ -326,8 +318,6 @@ export function createPainting(env) {
     if (k === 'sponge') return sprite('sp' + hex, () => mkSponge(hex));
     if (k === 'cloth') return sprite('cloth', mkCloth);
     if (k === 'grid') return sprite('grid', mkGridIcon);
-    if (k === 'paper') return sprite('paper' + paperId, () => mkPaper(paperId));
-    if (k.startsWith('sheet:')) return sprite('paper' + k.slice(6), () => mkPaper(k.slice(6)));
     return sprite('hang', mkHang);
   }
 
@@ -337,7 +327,7 @@ export function createPainting(env) {
       drawTrayBack(c, 0, H - tray.panelH + off, W, tray.panelH, u);
       for (const s of tray.shelves) drawShelf(c, s.x, s.y + off, s.w, u);
       for (const it of tray.items) {
-        const img = itemSprite(it.k), sel = it.k === 'pot' + color || it.k === tool || (it.k === 'grid' && grid) || it.k === 'sheet:' + paperId;
+        const img = itemSprite(it.k), sel = it.k === 'pot' + color || it.k === tool || (it.k === 'grid' && grid);
         const bt = bumps[it.k] ? (now - bumps[it.k]) / 1000 : 9, bump = bt < 0.3 ? Math.round(Math.sin((bt / 0.3) * Math.PI) * 4 * u) : 0;
         const w = img.width * u, h = img.height * u, x = Math.round(it.cx - w / 2), y = it.base - h - (sel ? 3 * u : 0) - bump + off;
         if (sel) { c.fillStyle = 'rgba(255,250,220,.55)'; c.fillRect(x - u, it.base + off - u, w + 2 * u, 2 * u); }
@@ -355,7 +345,6 @@ export function createPainting(env) {
   const DRIFT_SPEED = 240; // canvas pixels a second when painting at the very edge of a zoomed paper
   function update(dt) {
     refreshTray();
-    if (!trayOpen && trayAnim <= 0.001) pickerOpen = false;
     const target = trayOpen ? 1 : 0;
     trayAnim = env.reducedMotion ? target : clamp(trayAnim + (target ? dt * 5 : -dt * 6), 0, 1);
     if (grow && lastPtr) {
@@ -448,7 +437,7 @@ export function createPainting(env) {
     snapshot: paperCanvas, // full-size picture of the easel painting
     paperRect: () => place, // where the paper sits on screen when open
     boardFit: (bw, bh) => fitRect(current.w, current.h, bw, bh),
-    _state: () => ({ current, hung, tool, color, trayOpen, trayAnim, paperId, view, grid, tabs: tabsOn().length }), // for tests
+    _state: () => ({ current, hung, tool, color, trayOpen, trayAnim, natural: naturalGrid(W, H), view, grid, tabs: tabsOn().length }), // for tests
     _tabs: () => tabsOn(),
     _tray: () => tray,
   };

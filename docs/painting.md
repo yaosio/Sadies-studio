@@ -24,18 +24,19 @@ so the paper covers the screen to within a cell and the rest is plain paper.
 Cells hold 0 (bare paper) or 1 to 10 (the paint colors). Bare paper is plain
 (the grid dots below are optional).
 
-An empty easel takes the shape of the sheet last picked (below), fitted to the
-screen it is opened on. A painting keeps its own size.
+An empty easel is the default size (below), fitted to the screen it is opened on.
+A painting keeps its own size.
 
 ### Paper size, more paper, zoom
 
-No zoom buttons: the controls are gestures, tabs on the paper, and one pad.
+No zoom buttons and no paper controls in the tray: the controls are gestures and
+tabs on the paper.
 
-- **Paper pad** (tray, only on a bare easel): opens a shelf of five sheet
-  pictures to tap: screen shaped, big (more cells, finer detail), tall, wide,
-  small. Tall and wide are three times as long as across. Choosing one closes the
-  tray. Once there is paint the pad is gone, so a sheet never changes under a
-  painting. Sizes are never shrunk after painting starts.
+- **Default size**: every new painting, on a first start, after hanging one up,
+  and when an empty easel is reopened, starts at the default size (the natural
+  grid for the screen, `naturalGrid` in `grid.js`). Pulling tabs on a bare easel
+  does not stick. A check in the smoke test covers it. There are no paper
+  controls in the tray.
 - **Zoom is smooth**, not stepped: pinch with two fingers (or ctrl-wheel, trackpad
   pinch, `+`/`-`). Cells may be any size between the table view and 32 canvas
   pixels. This deliberately relaxes the whole-number rule of
@@ -71,7 +72,7 @@ No zoom buttons: the controls are gestures, tabs on the paper, and one pad.
 
 - **Paint pots** (10): tap one to choose a color.
 - **Small brush** (radius 1), **big brush** (radius 2).
-- **Paper pad** and **grid switch**: see above.
+- **Grid switch**: see above.
 - **Sponge**: dabs, random partial coverage.
 - **Cloth**: erases to paper. Choosing a pot while holding the cloth switches
   back to the big brush.
@@ -85,8 +86,10 @@ Only one finger paints; a second touch is ignored so a resting palm does not.
 
 ## Clothesline
 
-Finished paintings hang on a clothesline in the room, with pegs, in front of the
-wall, behind everything (the easel paper and Sadie are in front of them). Up to 13; the oldest is dropped past that. Each hangs at 36 art pixels
+Finished paintings hang on a clothesline in the room, with pegs, on the wall
+behind everything: the whole easel (frame and legs) and Sadie are in front of
+them (the room draws the easel again over the line, `paintFront`). Up to 13; the
+oldest is dropped past that. Each hangs at 36 art pixels
 wide and as tall as its shape says (thin lines survive shrinking). Wide ones are
 shorter. Tall ones drop down; past about 84 pixels the rest is **rolled up** with
 a ribbon at the bottom. The roll is only how it is drawn: nothing is cut from the

@@ -16,10 +16,6 @@ export const PAINTING_LINES = {
   zoomed: 'Pinch to zoom. Tap twice to see the whole paper.',
   tabs: 'Pull a tab out for more paper. Push it in for less.',
   tabsDone: 'Your painting stays right where it is.',
-  paper: {
-    screen: 'A sheet that fits the screen.', big: 'A big sheet. Room for tiny details.', tall: 'A tall sheet. Pinch to look closer, slide with two fingers.',
-    wide: 'A wide sheet. Pinch to look closer, slide with two fingers.', small: 'A small sheet. Chunky and quick.',
-  },
   first: 'Oh! You started. Good.',
   praise: ['Hmm. Not bad at all.', 'Ooh. I see what you are doing.', 'Keep going. I am watching.', 'That part is my favorite.', "Hmph. That's actually very good.", 'Bold! I like bold.'],
   many: 'So many colors. Very brave.',

@@ -25,7 +25,7 @@ export function createWorld(opts) {
   const c = cv.getContext('2d');
 
   let dpr = 1, S = 1, W = 320, H = 360, u = 1;
-  let geom = null, bitmap = null, anchors = null, hotspots = [];
+  let geom = null, bitmap = null, front = null, anchors = null, hotspots = [];
   const cam = { x: 0, y: 0, z: 1, tx: 0 }; // x, y: top-left of the view in room pixels; tx: where x is heading
   let view = { ox: 0, oy: 0, z: 1 };
   let mode = 'room'; // room | entering | painting | leaving | hanging
@@ -62,7 +62,7 @@ export function createWorld(opts) {
     u = uiUnit(S, dpr);
 
     const g = room.geometry(Math.max(room.minHeight, H));
-    if (!geom || geom.WH !== g.WH) bitmap = room.paint(g);
+    if (!geom || geom.WH !== g.WH) { bitmap = room.paint(g); front = room.paintFront ? room.paintFront(g) : null; }
     geom = g;
     const at = (a) => ({ ...a, y: g.F + a.fy });
     anchors = { board: at(room.anchors.board), clothesline: at(room.anchors.clothesline), sadie: at(room.anchors.sadie) };
@@ -134,8 +134,9 @@ export function createWorld(opts) {
   const hitSadie = (sx, sy) => { const [wx, wy] = toRoom(sx, sy); return wx >= anchors.sadie.x + 6 && wx < anchors.sadie.x + 40 && wy >= anchors.sadie.y + 2 && wy < anchors.sadie.y + 34; };
   function hitRoom(sx, sy) {
     const [wx, wy] = toRoom(sx, sy);
-    // Hung paintings are on the wall: only the paper on the easel (and Sadie) is in front of them.
-    if (inBox(wx, wy, anchors.board)) return hotspots.find((h) => h.action.activity) || null;
+    // Hung paintings are on the wall: the easel (and Sadie) are in front of them.
+    const easel = hotspots.find((h) => h.action.activity);
+    if (easel && inBox(wx, wy, easel)) return easel;
     for (const id in activities) {
       const i = activities[id].room.hit(wx, wy, anchors.clothesline);
       if (i >= 0) return { art: activities[id], index: i };
@@ -363,7 +364,9 @@ export function createWorld(opts) {
     view = { ox, oy, z };
     c.setTransform(z, 0, 0, z, ox, oy);
     c.drawImage(bitmap, 0, 0);
-    for (const id in activities) { activities[id].room.drawLine(c, anchors.clothesline); activities[id].room.drawBoard(c, anchors.board); } // hung paintings hang on the wall, behind the easel and everything else
+    for (const id in activities) activities[id].room.drawLine(c, anchors.clothesline); // hung paintings hang on the wall,
+    if (front) c.drawImage(front, 0, 0); // behind the easel and everything else
+    for (const id in activities) activities[id].room.drawBoard(c, anchors.board);
     c.drawImage(sadieSprite({ blinking: T < sadie.blinkUntil, flick: sadie.flick, sway: !RM && !still }, T), anchors.sadie.x, anchors.sadie.y - Math.round(sadie.hop));
     fx.draw(c);
     c.setTransform(1, 0, 0, 1, 0, 0);

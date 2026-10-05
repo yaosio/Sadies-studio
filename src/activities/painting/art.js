@@ -24,16 +24,6 @@ export function mkBack(){const p=new Px(20,26);p.r(3,6,14,19,'#c97a3a');p.r(4,4,
   p.r(5,8,4,6,'#e09a58');p.r(11,8,4,6,'#e09a58');p.r(5,16,4,6,'#e09a58');p.r(11,16,4,6,'#e09a58');p.r(13,14,2,2,'#ffd23f');
   p.r(1,24,18,2,'#ff8ac0');p.outline('#5e3014');return p.done()}
 
-// A sheet of paper on the tray, drawn in the proportions of the sheet it stands
-// for: 'screen' | 'big' | 'tall' | 'wide' | 'small'. Bigger sheets sit in a taller stack.
-const SHEET = { screen: [12, 16, 2], big: [16, 20, 3], tall: [8, 20, 2], wide: [20, 10, 2], small: [10, 12, 1] };
-export function mkPaper(id) {
-  const [w, h, stack] = SHEET[id] || SHEET.screen, p = new Px(22, 24), x0 = (22 - w) >> 1, y0 = 22 - h;
-  for (let k = stack; k >= 0; k--) { p.r(x0 + k, y0 - k, w, h, k ? '#e6dccb' : '#fffaf0'); if (k) p.r(x0 + k, y0 - k, w, 1, '#cfc3b2'); }
-  p.d(x0 + 1, y0 + 1, w - 2, h - 2, '#f0e6d2', 0.18);
-  p.r(x0 + 2, y0 + 3, Math.max(3, w >> 1), 1, '#c9b8ff'); p.r(x0 + 2, y0 + 5, Math.max(2, w >> 2), 1, '#ffb0c8');
-  p.outline('#6e5a48'); return p.done();
-}
 // The grid switch: a sheet with dots in rows.
 export function mkGridIcon() {
   const p = new Px(22, 24); p.r(3, 3, 16, 18, '#fffaf0');

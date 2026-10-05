@@ -130,7 +130,7 @@ for (const target of targets) {
   await ctx.close();
   console.log(`ok  ${target}`);
 }
-// Paper sizes, pull-out paper, zoom and scroll, the grid, and a tall painting hanging rolled up, on a phone.
+// Pull-out paper, zoom and scroll, the grid, and a tall painting hanging, on a phone.
 for (const target of targets) {
   const errors = [];
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
@@ -143,27 +143,22 @@ for (const target of targets) {
   await page.evaluate(() => window.__studio.enter('painting'));
   await until(page, () => window.__studio.debug().mode === 'painting', 'painting mode');
   await page.waitForTimeout(1200);
-  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { paper: s.paperId, w: s.current.w, h: s.current.h, view: s.view, grid: s.grid, tabs: s.tabs, painted: s.current.cells.filter(Boolean).length, hung: s.hung.length }; });
+  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { w: s.current.w, h: s.current.h, view: s.view, grid: s.grid, tabs: s.tabs, painted: s.current.cells.filter(Boolean).length, hung: s.hung.length, natural: s.natural }; });
   const geo = () => page.evaluate(() => { const t = window.__studio.activity('painting')._tray(), d = window.__studio.debug(); return { S: d.S, tab: t.tab, H: d.H, items: t.items.map((i) => ({ k: i.k, hit: i.hit })) }; });
   const css = (g, v) => (v * g.S) / 2; // canvas pixels to css pixels (device scale 2)
   const openTray = async () => { const g = await geo(); await page.touchscreen.tap(css(g, g.tab.x + g.tab.w / 2), css(g, g.H - g.tab.h / 2)); await page.waitForTimeout(500); };
   const tapItem = async (k) => { const g = await geo(), it = g.items.find((i) => i.k === k); assert.ok(it, `tray has ${k}`); await page.touchscreen.tap(css(g, it.hit.x + it.hit.w / 2), css(g, it.hit.y + it.hit.h / 2)); await page.waitForTimeout(250); };
   const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p[0], y: p[1], id: i })) });
 
-  // the tray has a paper pad, a grid switch, and none of the old zoom icons; the pad opens a shelf of sheet pictures
+  // the tray has the grid switch and no paper controls, and a new painting starts at the default size
   await openTray();
   let g = await geo();
-  assert.ok(g.items.some((i) => i.k === 'paper') && g.items.some((i) => i.k === 'grid'));
-  assert.ok(!g.items.some((i) => ['hand', 'zoom', 'more'].includes(i.k)), 'no zoom or hand icons');
-  await tapItem('paper');
-  g = await geo();
-  assert.equal(g.items.filter((i) => i.k.startsWith('sheet:')).length, 5, 'five sheets to pick from');
-  await tapItem('sheet:tall');
+  assert.ok(g.items.some((i) => i.k === 'grid') && g.items.some((i) => i.k === 'hang'));
+  assert.ok(!g.items.some((i) => ['paper', 'hand', 'zoom', 'more'].includes(i.k) || i.k.startsWith('sheet:')), 'no paper, hand or zoom controls');
   let s = await st();
-  assert.equal(s.paper, 'tall'); assert.equal(s.h, s.w * 3, `${target}: tall sheet is three times as long as wide`);
+  assert.deepEqual([s.w, s.h], [s.natural.w, s.natural.h], `${target}: a fresh painting is the default size`);
   assert.equal(s.tabs, 0, 'no tabs while the paper fills the screen');
   const startCell = s.view.cell;
-
   // grid is off by default, and then never shows, even while zooming
   assert.equal(s.grid, false, 'grid off by default');
   const dots = () => page.evaluate(() => { const c = document.getElementById('scene').getContext('2d'), d = window.__studio.debug(); const img = c.getImageData(0, 0, d.W, d.H).data; let n = 0; for (let i = 0; i < img.length; i += 4) if (img[i] < 200 && img[i + 1] < 200) n++; return n; });
@@ -182,7 +177,6 @@ for (const target of targets) {
   const painted = (await st()).painted;
   assert.ok(painted > 0);
   await openTray();
-  assert.ok(!(await geo()).items.some((i) => i.k === 'paper'), 'the paper pad hides once there is paint');
   await tapItem('grid');
   assert.equal((await st()).grid, true, 'grid switched on');
   await page.mouse.move(100, 400); await page.mouse.down(); await page.mouse.up(); // tuck the tray away
@@ -242,6 +236,8 @@ for (const target of targets) {
   await until(page, () => window.__studio.debug().mode === 'room', 'room after hanging');
   const hung = await page.evaluate(() => { const a = window.__studio.activity('painting'), d = window.__studio.debug(), i = a._state().hung.length - 1; return { i, rect: a.room.slotRect(i, d.anchors.clothesline) }; });
   assert.ok(hung.rect.h > 60, `${target}: a tall painting hangs taller than the standard frame (${hung.rect.h})`);
+  const fresh = await st();
+  assert.deepEqual([fresh.w, fresh.h], [fresh.natural.w, fresh.natural.h], `${target}: after hanging (even a pulled-out sheet) the next painting starts at the default size`);
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
   await page.waitForTimeout(300);
   const dbs = await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name));
