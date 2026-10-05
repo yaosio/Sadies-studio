@@ -30,6 +30,23 @@ so) or **proposed** (a default picked, awaiting the user).
   change, rules as checks where possible. Reason: docs bloated in an earlier
   project and made sessions read unrelated text.
 
+- [confirmed] All art is drawn in code, as in the mockup. No image files.
+  Reason: the user's choice; keeps assets, tooling and tests simple.
+- [confirmed] Sound is also made in code (synthesized, no audio files). Sadie
+  makes one happy sound when the child starts, and sounds when touched. She
+  never makes noise at random.
+- [confirmed] Fonts are hosted in the app, not loaded from a third party.
+  Reason: nothing may contact outside servers.
+- [confirmed] Should work in most popular browsers.
+- [confirmed] For now the app runs as a claude.ai artifact; distribution is
+  decided later. Reason: the user's choice. Implication: keep the app
+  self-contained so it can run as a single page.
+- [confirmed] Any user can save paintings out; no parent-only area for now.
+- [confirmed] Content is English. Progress is tracked and saved per activity;
+  painting is saved. The child is just starting to read, so text is short and
+  simple but never required.
+- [confirmed] No special accessibility needs known.
+
 ## Working style
 
 - [confirmed] Claude acts like the software engineer: raises risks and
@@ -57,14 +74,10 @@ so) or **proposed** (a default picked, awaiting the user).
 
 ## Open questions
 
-- Procedural art in code (as in the mockup) or image files for new art?
-- Sound and voice for Sadie?
-- Which learning activity comes first after painting?
-- Self-host the font, or accept the Google Fonts request?
-- Which devices and browsers must work?
-- Home-screen install and hosting: where does it live?
-- Backup/export of paintings for a parent, and any parent-only area?
-- Language(s) for content, and progress tracking or none?
-- Accessibility needs of the child (vision, motor)?
+- Which learning activity comes first after painting? (Not known yet;
+  focus is painting.)
+- How will the app be distributed later? (For now it runs as a claude.ai
+  artifact.)
+- Parent-only area: none for now. Revisit if one is ever needed.
 
 The full checklist is in [engineering.md](engineering.md).

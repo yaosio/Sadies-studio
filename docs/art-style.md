@@ -34,7 +34,7 @@ Do not hardcode colors in new code.
 
 ## Type
 
-Pixelify Sans (Google Fonts) for Sadie's speech. Fall back to system sans.
+Pixelify Sans for Sadie's speech, hosted in the app (no third-party requests). Fall back to system sans.
 
 ## Sadie
 
@@ -43,7 +43,7 @@ with a tail that sways and a blink. She appears in the room and in a speech
 bubble face. She is dry, a bit grumpy, secretly kind ("Hmph. That's actually
 very good."). Keep lines short.
 
-## Open points
+## Source of art
 
-- Whether art stays procedurally generated in code (as in the mockup) or
-  becomes image files. Undecided; see [decisions.md](decisions.md).
+All art is drawn in code with the pixel toolkit, no image files (see
+[decisions.md](decisions.md)).

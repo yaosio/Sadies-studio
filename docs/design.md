@@ -2,7 +2,7 @@
 
 ## What it is
 
-An art and learning app for a 6 year old (who may not read yet), made by a
+An art and learning app for a 6 year old (who is just starting to read), made by a
 parent for their own child. Browser-based. Painting comes first. Learning
 activities (reading, music and others) come later, as more objects and rooms
 in the same place.
@@ -37,8 +37,11 @@ list.
 - Gradients (use dithering).
 - Accounts, ads, network features, anything needing a parent to operate.
 
+## Audio
+
+Sounds are synthesized in code. Sadie makes one happy sound when the child
+starts and sounds when touched. She never makes noise on her own.
+
 ## Not yet decided
 
 - Which learning activities come first after painting.
-- Whether Sadie is ever voiced (audio). Currently text bubbles only.
-- Whether there is sound at all.
