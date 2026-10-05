@@ -82,7 +82,7 @@ so) or **proposed** (a default picked, awaiting the user).
   human eyes on the result.
 - [proposed] Small PRs; CI runs the tests and screenshots. Reason: easy review
   by the next session.
-- [proposed] The paint grid is sized to the screen it is opened on (about 54
+- [proposed] The default paint grid is sized to the screen it is opened on (about 54
   cells on the short side, 11 values per cell as in the mockup), so the paper
   covers the whole screen in any shape. A painting keeps its own size
   afterwards. Reason: full-screen paper must not leave bars on phones.
@@ -93,6 +93,37 @@ so) or **proposed** (a default picked, awaiting the user).
   under key `sadies-studio`; the mockup's v1 is migrated. See saving.md.
 - [proposed] Objects, pots and tools make small sounds when touched. Nothing
   plays by itself except Sadie's one trill at the start.
+- [confirmed] Paper size and zoom: zoom is pinch, double tap, wheel or keys (view
+  only), and the paper is grown or shrunk by tabs on its edges in the whole-paper
+  view. No paper controls in the tray (the sheet pad, hand, magnifier and plus
+  icons were all confusing, user 2026-10-05). Works with touch and mouse. Old
+  paintings need no care: the user is the only user.
+- [proposed] Wiping the whole paper is a tray bucket you hold for about 0.9 s (no
+  confirmation text). Reason: hard to do by accident; undo also brings it back.
+- [confirmed] A new painting always starts at the default size (the natural grid for
+  the screen). The sheet shapes (tall, wide, big, small) were dropped. Reason: they
+  changed the default size.
+- [confirmed] Zoom and scroll are smooth, not snapped to whole cells (the paper
+  only). Reason: the user's choice. Relaxes the whole-number rule for this one case.
+- [confirmed] No grid dots at all: the switch, the saved `grid` flag and the motion
+  flash are removed (user 2026-10-05).
+- [proposed] Undo is multi-step (30), covers strokes, wipes and paper size changes,
+  and is not saved. Reason: the user asked for undo; a stack is no harder for a child
+  than one step. Wipe-only undo is the alternative.
+- [confirmed] Paper can be shrunk as well as grown, by pushing the edge tabs in,
+  but only through bare paper (never paint). The tabs are big and act like a
+  joystick (hold to keep going). Reason: swiping to the screen edge was hard on a
+  phone.
+- [confirmed] Hung paintings are on the wall, behind everything; the whole easel
+  (frame and legs) and Sadie are in front. Reason: a tall one hung over the easel.
+- [confirmed] A very tall painting hangs and then rolls up where it would reach the
+  floor. Reason: the user's idea. Wide ones just hang shorter.
+- [proposed] Paper stops growing at 320 cells a side. Zoom stops at 32 canvas
+  pixels per cell. A double tap within 28 art pixels and about a third of a second
+  zooms instead of dabbing twice.
+- [proposed] Paintings are stored in IndexedDB (one record per activity), with
+  localStorage as the fallback. Reason: localStorage's roughly 5 MB limit is too
+  small for big paper. The first start copies the old localStorage save over.
 - [proposed] The PNG save uses a normal download link, or the host's own save
   (the artifact `downloads` capability) when running as an artifact, where
   sandboxed pages cannot start downloads.
@@ -111,6 +142,9 @@ so) or **proposed** (a default picked, awaiting the user).
 ## Open questions
 
 
+- Should the browser be asked to keep the data permanently
+  (`navigator.storage.persist()`)? Some browsers show a prompt, which a child
+  must never see, so it is not asked for yet.
 - Which learning activity comes first after painting? (Not known yet;
   focus is painting.)
 - How will the app be distributed later? (For now it runs as a claude.ai

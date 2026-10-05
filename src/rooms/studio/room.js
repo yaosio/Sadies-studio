@@ -4,7 +4,7 @@
 // Actions: { activity } opens an activity, { say } makes Sadie speak a line from
 // lines.js, { glide } slides the camera to that x first.
 import { WORLD_W, EX, BOARD_W, BOARD_H, MIN_H, studioGeometry } from './geometry.js';
-import { paintStudio } from './art.js';
+import { paintStudio, paintStudioFront } from './art.js';
 import { STUDIO_LINES } from './lines.js';
 
 export const studioRoom = {
@@ -14,6 +14,7 @@ export const studioRoom = {
   startX: EX,
   geometry: studioGeometry,
   paint: paintStudio,
+  paintFront: paintStudioFront, // drawn over the clothesline (the easel)
   lines: STUDIO_LINES,
   anchors: {
     board: { x: EX - BOARD_W / 2, fy: -196, w: BOARD_W, h: BOARD_H }, // easel paper

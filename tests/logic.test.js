@@ -5,8 +5,9 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { encodeCells, decodeCells, encodePainting, decodePainting } from '../src/save/codec.js';
 import { migrate, emptySave, CURRENT_VERSION } from '../src/save/migrate.js';
-import { createStore, KEY } from '../src/save/store.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE } from '../src/activities/painting/grid.js';
+import { createStore, openStore, KEY } from '../src/save/store.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, MAX_CELL } from '../src/activities/painting/grid.js';
+import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
 import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
 import { layoutTray, ITEM_IDS } from '../src/activities/painting/tray.js';
 import { PAINT } from '../src/art/palette.js';
@@ -90,6 +91,99 @@ test('grid fits the screen with whole-number cells', () => {
   }
   const p = placeGrid(100, 50, 200, 400); // a landscape painting on a portrait screen
   assert.equal(p.cell, 2); assert.equal(p.y, 150);
+});
+
+test('paper grows and shrinks around the painting but never cuts paint', () => {
+  const p = newPainting(30, 20);
+  stamp(p, 10, 8, 'brushS', 2);
+  const bb = paintBounds(p);
+  const g = resizeSides(p, 5, 2, 0, 7);
+  assert.deepEqual([g.l, g.t, g.r, g.b], [5, 2, 0, 7]);
+  assert.equal(g.p.w, 35); assert.equal(g.p.h, 29);
+  assert.equal(g.p.cells[(8 + 2) * g.p.w + 10 + 5], 3, 'same paint in the same place');
+  assert.equal(g.p.cells.filter(Boolean).length, p.cells.filter(Boolean).length, 'no paint lost or added');
+  // shrink: bare paper goes, but the cut stops at the paint
+  const cut = resizeSides(p, -100, -100, -100, -100);
+  assert.equal(cut.p.cells.filter(Boolean).length, p.cells.filter(Boolean).length, 'a huge cut still loses no paint');
+  assert.ok(cut.p.w >= bb.x1 - bb.x0 + 1 && cut.p.h >= bb.y1 - bb.y0 + 1 && cut.p.w >= MIN_PAPER && cut.p.h >= MIN_PAPER);
+  assert.equal(cut.p.w, MIN_PAPER, 'a cut stops at the smallest paper');
+  const wide = newPainting(40, 20); for (let x = 8; x < 30; x++) wide.cells[5 * 40 + x] = 2;
+  const tight = resizeSides(wide, -100, 0, -100, 0);
+  assert.deepEqual([tight.l, tight.r, tight.p.w], [-8, -10, 22], 'a cut stops right at the paint');
+  const bare = resizeSides(newPainting(30, 20), 0, 0, -100, -100);
+  assert.equal(bare.p.w, MIN_PAPER); assert.equal(bare.p.h, MIN_PAPER); // bare paper shrinks to the minimum
+  assert.equal(resizeSides(newPainting(MAX_SIDE - 2, 24), 3, 0, 3, 0).p.w, MAX_SIDE, 'growth stops at the limit');
+});
+
+test('zoom is smooth, keeps the paper in reach, and the table view leaves room for the tabs', () => {
+  for (const [W, H] of [[150, 300], [260, 563], [640, 360], [900, 360]]) {
+    for (const g of [naturalGrid(W, H), { w: 54, h: 162 }, { w: 162, h: 54 }, { w: MAX_SIDE, h: MAX_SIDE }, { w: 12, h: 12 }]) {
+      const id = g.w + 'x' + g.h, m = 40, r = zoomRange(g.w, g.h, W, H, m);
+      assert.ok(r.min > 0 && r.min <= r.max && r.max >= MAX_CELL);
+      const start = startCell(g.w, g.h, W, H);
+      assert.ok(Number.isInteger(start) && start >= r.min && start <= r.max, 'opens at a whole-number cell inside the range');
+      // the table view fits the paper with the margin all round
+      const tv = clampView({ cell: r.min, ox: 0, oy: 0 }, g.w, g.h, W, H);
+      if (r.min < start) assert.ok(tv.ox >= m - 1 && tv.oy >= m - 1 && tv.ox + g.w * r.min <= W - m + 1 && tv.oy + g.h * r.min <= H - m + 1, `${id} on ${W}x${H}: table view has room`);
+      // never scrolled past an edge
+      for (const cell of [r.min, (r.min + r.max) / 2, r.max]) {
+        const v = clampView({ cell, ox: -9999, oy: 9999 }, g.w, g.h, W, H);
+        for (const [o, size, screen] of [[v.ox, g.w * cell, W], [v.oy, g.h * cell, H]]) {
+          if (size > screen) assert.ok(o <= 0 && o + size >= screen - 1, 'scrolled no further than the paper');
+          else assert.ok(Math.abs(o - (screen - size) / 2) <= 1, 'a small paper stays centered');
+        }
+      }
+    }
+  }
+  const v = viewAround(11.5, 10.5, 20.5, 100, 200, 54, 162, 260, 563); // keep paper point (10.5, 20.5) under (100, 200)
+  assert.ok(Math.abs(v.ox + 10.5 * v.cell - 100) <= 1 && Math.abs(v.oy + 20.5 * v.cell - 200) <= 1);
+  assert.ok(fitCell(100, 50, 200, 200) === 2 && fitCell(100, 50, 200, 200, 20) === 1.6);
+});
+
+test('pull-out tabs show only while the whole paper is on screen, one per edge', () => {
+  const inside = edgeTabs({ x: 30, y: 40, w: 100, h: 160 }, 160, 240, 1);
+  assert.deepEqual(inside.map((t) => t.side).sort(), ['bottom', 'left', 'right', 'top']);
+  for (const t of inside) assert.ok(t.hit.w >= t.w && t.hit.h >= t.h, 'finger-sized hit box');
+  assert.equal(edgeTabs({ x: 0, y: 0, w: 300, h: 500 }, 160, 240, 1).length, 0);
+  assert.equal(edgeTabs({ x: 0, y: 0, w: 300, h: 500 }, 160, 240, 1, true).length, 4);
+});
+
+test('hung paintings: wide ones are shorter, tall ones drop and roll up past the limit', () => {
+  const art = (w, h) => ({ w, h, cells: new Uint8Array(w * h) });
+  assert.deepEqual(hangShape(null), { ph: 27, rolled: false, full: 27 });
+  assert.equal(hangShape(art(72, 54)).ph, 27);
+  assert.ok(hangShape(art(162, 54)).ph < 27 && hangShape(art(162, 54)).ph >= 9);
+  const mid = hangShape(art(54, 117)); // a phone-shaped sheet hangs in full
+  assert.ok(!mid.rolled && mid.ph > 27);
+  const long = hangShape(art(54, 162));
+  assert.ok(long.rolled && long.full > long.ph);
+  const a = slotRect(0, { x: 0, y: 0 }, art(54, 162)), b = slotRect(0, { x: 0, y: 0 }, art(72, 54));
+  assert.ok(a.h > b.h && a.x === b.x && a.y === b.y && a.w === b.w, 'taller frame, same peg place');
+});
+
+// a stand-in for IndexedDB: records by id, and what was written
+function fakeBackend(records = [], fail = false) {
+  const written = {};
+  return { written, readAll: async () => { if (fail) throw new Error('blocked'); return records; }, put: (id, state) => { written[id] = state; } };
+}
+test('IndexedDB store: starts from what it holds, writes per activity, moves old saves over once', async () => {
+  const held = fakeBackend([{ id: 'painting', version: CURRENT_VERSION, state: { a: 1 } }, { id: 'old', version: 1, state: {} }]);
+  const s = await openStore(held, memory(), 10000);
+  assert.deepEqual(s.get('painting'), { a: 1 }); assert.equal(s.get('old'), undefined, 'records of another version are ignored');
+  s.set('painting', { a: 2 }); s.flush();
+  assert.deepEqual(held.written, { painting: { a: 2 } });
+  // empty database: whatever localStorage held (even the mockup's v1) moves over
+  const fresh = fakeBackend(), local = memory({ 'sadies-studio-v1': JSON.stringify(fixture('save-v1.json')) });
+  const moved = await openStore(fresh, local, 10000);
+  assert.equal(moved.get('painting').hung.length, 2);
+  moved.flush();
+  assert.equal(fresh.written.painting.hung.length, 2, 'copied into the database on first start');
+  // no database, or one that throws: localStorage still works
+  for (const none of [null, fakeBackend([], true)]) {
+    const mem = memory(), f = await openStore(none, mem, 10000);
+    f.set('painting', { b: 1 }); f.flush();
+    assert.deepEqual(JSON.parse(mem.getItem(KEY)).activities.painting, { b: 1 });
+  }
 });
 
 test('thumbnails keep thin lines and letterbox', () => {

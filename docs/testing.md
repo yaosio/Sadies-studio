@@ -7,12 +7,14 @@ Playwright; Chromium is in the cloud environment).
 ## Layers
 
 1. **Logic tests** (`npm test`, `tests/logic.test.js`, no browser): save codec,
-   every saved-data version loads, storage failures, painting tools and grid
-   math, thumbnails, tray fit, integer scale, camera, room data validity, and
+   every saved-data version loads, storage failures, painting tools and undo
+   math, zoom range and view clamping, pull-out tabs, more paper, hanging shape, the IndexedDB store (with a fake database), thumbnails, tray fit, integer scale, camera, room data validity, and
    the palette rule below.
 2. **Smoke test** (`npm run smoke`): in headless Chromium, load the app, tap
    the easel, check the paper fills the screen, paint, use the tray, hang it
-   up, leave with Escape, reload and check it survived, flick the room and catch it, long-press a hung
+   up, leave with Escape, reload and check it survived (from IndexedDB),
+   on a phone: no paper controls in the tray, a fresh painting at the default size (also after hanging), undo, smooth pinch, two-finger scroll, double tap to the table
+   view, hold the bucket to wipe the paper (a tap does not), hold a tab to grow the paper and push it in to shrink it, ctrl-wheel, hang it rolled up, flick the room and catch it, long-press a hung
    painting and get a PNG download, play every sound, check the trill is a roll and when it plays (on load or
    first touch), and fail on any console
    error or request to another host. Runs on `index.html` and `dist/index.html`.

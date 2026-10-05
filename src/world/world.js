@@ -25,11 +25,13 @@ export function createWorld(opts) {
   const c = cv.getContext('2d');
 
   let dpr = 1, S = 1, W = 320, H = 360, u = 1;
-  let geom = null, bitmap = null, anchors = null, hotspots = [];
+  let geom = null, bitmap = null, front = null, anchors = null, hotspots = [];
   const cam = { x: 0, y: 0, z: 1, tx: 0 }; // x, y: top-left of the view in room pixels; tx: where x is heading
   let view = { ox: 0, oy: 0, z: 1 };
   let mode = 'room'; // room | entering | painting | leaving | hanging
   let trans = null, activeId = null, vel = 0, ptr = null, ptrId = null;
+  const touches = new Map(); // fingers on the paper, for two-finger zoom and scroll
+  let gesturing = false;
   const sadie = { blinkUntil: 0, nextBlink: 2, flick: 0, hop: 0 };
   const fx = createEffects();
   let lastInteract = 0, idleSaid = false, nextTwinkle = 1, last = 0;
@@ -60,7 +62,7 @@ export function createWorld(opts) {
     u = uiUnit(S, dpr);
 
     const g = room.geometry(Math.max(room.minHeight, H));
-    if (!geom || geom.WH !== g.WH) bitmap = room.paint(g);
+    if (!geom || geom.WH !== g.WH) { bitmap = room.paint(g); front = room.paintFront ? room.paintFront(g) : null; }
     geom = g;
     const at = (a) => ({ ...a, y: g.F + a.fy });
     anchors = { board: at(room.anchors.board), clothesline: at(room.anchors.clothesline), sadie: at(room.anchors.sadie) };
@@ -132,6 +134,9 @@ export function createWorld(opts) {
   const hitSadie = (sx, sy) => { const [wx, wy] = toRoom(sx, sy); return wx >= anchors.sadie.x + 6 && wx < anchors.sadie.x + 40 && wy >= anchors.sadie.y + 2 && wy < anchors.sadie.y + 34; };
   function hitRoom(sx, sy) {
     const [wx, wy] = toRoom(sx, sy);
+    // Hung paintings are on the wall: the easel (and Sadie) are in front of them.
+    const easel = hotspots.find((h) => h.action.activity);
+    if (easel && inBox(wx, wy, easel)) return easel;
     for (const id in activities) {
       const i = activities[id].room.hit(wx, wy, anchors.clothesline);
       if (i >= 0) return { art: activities[id], index: i };
@@ -183,14 +188,26 @@ export function createWorld(opts) {
     cv.style.cursor = mode === 'painting' ? 'crosshair' : mode === 'room' ? 'grab' : 'default';
   }
 
+  const twoTouches = () => { const [a, b] = [...touches.values()]; return [a, b]; };
   function onDown(e) {
     sound.unlock();
-    if (ptrId !== null) return; // one finger at a time: a resting palm must not paint
+    const [sx, sy] = toLogical(e);
+    if (mode === 'painting') {
+      touches.set(e.pointerId, { x: sx, y: sy });
+      const act = activities[activeId];
+      if (touches.size === 2 && !gesturing && act.canGesture()) { // a second finger: move or zoom the paper
+        try { cv.setPointerCapture(e.pointerId); } catch (_) { /* not all browsers */ }
+        gesturing = true;
+        act.gestureStart(...twoTouches());
+        return;
+      }
+      if (touches.size > 1) return;
+    }
+    if (ptrId !== null) return; // one finger paints: a resting palm must not
     ptrId = e.pointerId;
     try { cv.setPointerCapture(e.pointerId); } catch (_) { /* not all browsers */ }
-    const [sx, sy] = toLogical(e);
     lastInteract = now();
-    if (mode === 'painting') activities[activeId].pointerDown(sx, sy);
+    if (mode === 'painting') activities[activeId].pointerDown(sx, sy, { pan: e.pointerType === 'mouse' && e.button !== 0 });
     else if (mode === 'room') {
       vel = 0; cam.tx = cam.x; // catching a flick stops it right where it is, no jump
       ptr = { sx, sy, camX: cam.x, moved: false, downT: now(), long: false, samples: [{ t: now(), x: sx }] };
@@ -198,6 +215,8 @@ export function createWorld(opts) {
   }
   function onMove(e) {
     const [sx, sy] = toLogical(e);
+    if (touches.has(e.pointerId)) touches.set(e.pointerId, { x: sx, y: sy });
+    if (gesturing) { if (touches.size >= 2) activities[activeId].gestureMove(...twoTouches()); return; }
     if (e.pointerId !== ptrId) {
       if (ptrId === null && e.pointerType === 'mouse' && mode === 'room') {
         const hot = edgeHit(sx, sy) || hitSadie(sx, sy) || hitRoom(sx, sy);
@@ -221,7 +240,12 @@ export function createWorld(opts) {
       }
     }
   }
+  function endTouch(e) {
+    touches.delete(e.pointerId);
+    if (gesturing && touches.size < 2) { gesturing = false; if (activities[activeId]) activities[activeId].gestureEnd(); }
+  }
   function onUp(e) {
+    endTouch(e);
     if (e.pointerId !== ptrId) return;
     ptrId = null;
     if (mode === 'painting') { activities[activeId].pointerUp(); return; }
@@ -241,9 +265,18 @@ export function createWorld(opts) {
     return clamp(-((last.x - first.x) / cam.z) / ((last.t - first.t) / 1000), -1800, 1800);
   }
   function onCancel(e) {
+    endTouch(e);
     if (e.pointerId !== ptrId) return;
     ptrId = null; ptr = null;
     if (mode === 'painting') activities[activeId].pointerUp();
+  }
+  // Wheel scrolls the paper; ctrl-wheel (and a trackpad pinch) zooms it.
+  function onWheel(e) {
+    if (mode !== 'painting') return;
+    e.preventDefault();
+    const [sx, sy] = toLogical(e), k = e.deltaMode === 1 ? 16 : 1, zoom = e.ctrlKey || e.metaKey;
+    const f = zoom ? 1 : dpr / S; // scrolling is in canvas pixels; zooming only needs the raw amount
+    activities[activeId].wheel(sx, sy, e.deltaX * k * f, e.deltaY * k * f, zoom);
   }
   function onKey(e) {
     sound.unlock();
@@ -331,7 +364,9 @@ export function createWorld(opts) {
     view = { ox, oy, z };
     c.setTransform(z, 0, 0, z, ox, oy);
     c.drawImage(bitmap, 0, 0);
-    for (const id in activities) { activities[id].room.drawLine(c, anchors.clothesline); activities[id].room.drawBoard(c, anchors.board); }
+    for (const id in activities) activities[id].room.drawLine(c, anchors.clothesline); // hung paintings hang on the wall,
+    if (front) c.drawImage(front, 0, 0); // behind the easel and everything else
+    for (const id in activities) activities[id].room.drawBoard(c, anchors.board);
     c.drawImage(sadieSprite({ blinking: T < sadie.blinkUntil, flick: sadie.flick, sway: !RM && !still }, T), anchors.sadie.x, anchors.sadie.y - Math.round(sadie.hop));
     fx.draw(c);
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -368,6 +403,8 @@ export function createWorld(opts) {
     cv.addEventListener('pointermove', onMove);
     cv.addEventListener('pointerup', onUp);
     cv.addEventListener('pointercancel', onCancel);
+    cv.addEventListener('wheel', onWheel, { passive: false });
+    cv.addEventListener('contextmenu', (e) => { if (mode === 'painting') e.preventDefault(); });
     addEventListener('keydown', onKey);
     updateCursor();
     if (!still) setTimeout(() => say(WORLD_LINES.hello, 6000), 700);

@@ -9,24 +9,27 @@ export const ROW_H = 38; // art pixels per shelf row (tallest sprite + shelf boa
 export const TAB_W = 34;
 export const TAB_H = 13;
 const SLOT = 26; // art pixels one item needs
-export const ACTION_IDS = ['hang'];
+// hand: drag the paper around. zoom: step closer. paper: pick another sheet. more: add paper.
+// undo: back one step. clear: hold to wipe the paper clean. hang: hang it up.
+export const ACTION_IDS = ['undo', 'clear', 'hang'];
 export const ITEM_IDS = [...TOOL_IDS, ...ACTION_IDS, ...PAINT.map((_, i) => 'pot' + i)];
 
 export function layoutTray(W, H, u) {
   const wide = W >= (ITEM_IDS.length * SLOT + 16) * u;
   const rows = wide ? 1 : 3;
   const panelH = rows * ROW_H * u;
-  const perRow = ITEM_IDS.length / rows;
+  const perRow = Math.ceil(ITEM_IDS.length / rows);
   const span = Math.min(W - 8 * u, perRow * (wide ? 34 : 40) * u);
   const left = Math.round((W - span) / 2);
+  const rowBase = (row) => H - panelH + (row + 1) * ROW_H * u - 6 * u; // sprites stand on the shelf top
   const items = ITEM_IDS.map((k, i) => {
     const row = Math.floor(i / perRow), col = i % perRow;
-    const cx = Math.round(left + (span * (col + 0.5)) / perRow);
-    const base = H - panelH + (row + 1) * ROW_H * u - 6 * u; // sprites stand on the shelf top
+    const inRow = Math.min(perRow, ITEM_IDS.length - row * perRow); // a short last row is centered
+    const cx = Math.round(left + (span * (col + 0.5 + (perRow - inRow) / 2)) / perRow), base = rowBase(row);
     return { k, cx, base, hit: { x: cx - 13 * u, y: base - 28 * u, w: 26 * u, h: 34 * u } };
   });
   const shelves = [];
-  for (let r = 0; r < rows; r++) shelves.push({ x: 0, y: H - panelH + (r + 1) * ROW_H * u - 6 * u, w: W });
+  for (let r = 0; r < rows; r++) shelves.push({ x: 0, y: rowBase(r), w: W });
   const tabW = TAB_W * u, tabH = TAB_H * u;
   return {
     u, rows, panelH, items, shelves,

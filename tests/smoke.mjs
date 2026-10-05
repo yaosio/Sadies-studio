@@ -93,7 +93,8 @@ for (const target of targets) {
   await page.mouse.click(tx, ty);
   await until(page, () => window.__studio.activity('painting')._state().trayOpen, 'tray open');
   await page.waitForTimeout(400);
-  const click = async (k) => { const it = tabs.items.find((i) => i.k === k); await page.mouse.click((it.hit.x + it.hit.w / 2) * tabs.S, (it.hit.y + it.hit.h / 2) * tabs.S); };
+  const trayNow = () => page.evaluate(() => window.__studio.activity('painting')._tray().items.map((i) => ({ k: i.k, hit: i.hit })));
+  const click = async (k) => { tabs.items = await trayNow(); const it = tabs.items.find((i) => i.k === k); await page.mouse.click((it.hit.x + it.hit.w / 2) * tabs.S, (it.hit.y + it.hit.h / 2) * tabs.S); };
   await click('pot4');
   assert.equal((await st()).color, 4, 'blue pot picked');
   await click('sponge');
@@ -128,6 +129,135 @@ for (const target of targets) {
   assert.deepEqual(errors, [], `${target}: no console errors or outside requests`);
   await ctx.close();
   console.log(`ok  ${target}`);
+}
+// Pull-out paper, zoom and scroll, undo, wipe, and a tall painting hanging, on a phone.
+for (const target of targets) {
+  const errors = [];
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !m.text().includes('willReadFrequently') && !m.text().includes('AudioContext was not allowed')) errors.push(m.text()); });
+  const cdp = await ctx.newCDPSession(page);
+  await page.goto(`${url}/${target}?test`);
+  await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room');
+  await page.evaluate(() => window.__studio.enter('painting'));
+  await until(page, () => window.__studio.debug().mode === 'painting', 'painting mode');
+  await page.waitForTimeout(1200);
+  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { w: s.current.w, h: s.current.h, view: s.view, tabs: s.tabs, painted: s.current.cells.filter(Boolean).length, hung: s.hung.length, natural: s.natural }; });
+  const geo = () => page.evaluate(() => { const t = window.__studio.activity('painting')._tray(), d = window.__studio.debug(); return { S: d.S, tab: t.tab, H: d.H, items: t.items.map((i) => ({ k: i.k, hit: i.hit })) }; });
+  const css = (g, v) => (v * g.S) / 2; // canvas pixels to css pixels (device scale 2)
+  const openTray = async () => { const g = await geo(); await page.touchscreen.tap(css(g, g.tab.x + g.tab.w / 2), css(g, g.H - g.tab.h / 2)); await page.waitForTimeout(500); };
+  const tapItem = async (k) => { const g = await geo(), it = g.items.find((i) => i.k === k); assert.ok(it, `tray has ${k}`); await page.touchscreen.tap(css(g, it.hit.x + it.hit.w / 2), css(g, it.hit.y + it.hit.h / 2)); await page.waitForTimeout(250); };
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p[0], y: p[1], id: i })) });
+
+  // the tray has undo and no paper controls, and a new painting starts at the default size
+  await openTray();
+  let g = await geo();
+  assert.ok(g.items.some((i) => i.k === 'undo') && g.items.some((i) => i.k === 'hang'));
+  assert.ok(!g.items.some((i) => ['paper', 'hand', 'zoom', 'more'].includes(i.k) || i.k.startsWith('sheet:')), 'no paper, hand or zoom controls');
+  let s = await st();
+  assert.deepEqual([s.w, s.h], [s.natural.w, s.natural.h], `${target}: a fresh painting is the default size`);
+  assert.equal(s.tabs, 0, 'no tabs while the paper fills the screen');
+  const startCell = s.view.cell;
+  // paint a stroke
+  await page.mouse.move(100, 200); await page.mouse.down();
+  for (let i = 0; i < 20; i++) await page.mouse.move(100 + i * 8, 200 + i * 12);
+  await page.mouse.up();
+  const painted = (await st()).painted;
+  assert.ok(painted > 0);
+  const afterTap = painted;
+
+  // pinch out: smooth, not snapped to steps; a pinch paints nothing
+  const cells = [];
+  await touch('touchStart', [[170, 400], [220, 400]]);
+  for (let i = 1; i <= 10; i++) { await touch('touchMove', [[170 - i * 5, 400], [220 + i * 5, 400]]); cells.push((await st()).view.cell); }
+  await touch('touchEnd', []);
+  s = await st();
+  assert.ok(s.view.cell > startCell, `${target}: pinch zooms in (${startCell} -> ${s.view.cell})`);
+  assert.ok(new Set(cells.map((c) => c.toFixed(2))).size >= 6, 'zoom changes smoothly, not in steps');
+  assert.ok(cells.some((c) => c !== Math.round(c)), 'cell sizes between whole numbers are allowed');
+  assert.ok(s.painted <= afterTap, 'a pinch paints nothing');
+  // two fingers drag the paper
+  const y0 = s.view.oy;
+  await touch('touchStart', [[150, 600], [230, 600]]);
+  for (let i = 1; i <= 10; i++) await touch('touchMove', [[150, 600 - i * 20], [230, 600 - i * 20]]);
+  await touch('touchEnd', []);
+  assert.ok((await st()).view.oy < y0, 'two fingers scroll the paper');
+
+  // double tap goes out to the whole paper, with its pull-out tabs, and does not leave dabs
+  const before = (await st()).painted;
+  await page.touchscreen.tap(200, 300); await page.waitForTimeout(80); await page.touchscreen.tap(200, 300);
+  await page.waitForTimeout(700);
+  s = await st();
+  assert.equal(s.painted, before, 'a double tap leaves no dabs');
+  assert.equal(s.tabs, 4, `${target}: the whole paper shows four pull-out tabs`);
+  // pull the right tab outward and hold: paper unrolls without a long swipe; the painting stays
+  const tab = await page.evaluate(() => { const d = window.__studio.debug(), t = window.__studio.activity('painting')._tabs().find((x) => x.side === 'right'); return { x: t.x + t.w / 2, y: t.y + t.h / 2, S: d.S, depth: t.w }; });
+  assert.ok(tab.depth * tab.S / 2 >= 24, `${target}: tabs are big enough for a finger (${tab.depth * tab.S / 2} css px deep)`);
+  const tx = (tab.x * tab.S) / 2, ty = (tab.y * tab.S) / 2;
+  await page.mouse.move(tx, ty); await page.mouse.down();
+  await page.mouse.move(tx + 18, ty);
+  await page.waitForTimeout(900); // held, not swiped
+  await page.mouse.up();
+  const wider = await st();
+  assert.ok(wider.w > s.w + 10 && wider.h === s.h && wider.painted === s.painted, `${target}: holding the tab adds paper and keeps the paint (${s.w} -> ${wider.w})`);
+  // push it back in: bare paper goes, paint stays, and it stops at the paint
+  const tab2 = await page.evaluate(() => { const d = window.__studio.debug(), t = window.__studio.activity('painting')._tabs().find((x) => x.side === 'right'); return { x: t.x + t.w / 2, y: t.y + t.h / 2, S: d.S }; });
+  await page.mouse.move((tab2.x * tab2.S) / 2, (tab2.y * tab2.S) / 2); await page.mouse.down();
+  await page.mouse.move((tab2.x * tab2.S) / 2 - 80, (tab2.y * tab2.S) / 2);
+  await page.waitForTimeout(2500);
+  await page.mouse.up();
+  const smaller = await st();
+  assert.ok(smaller.w < wider.w && smaller.painted === wider.painted, `${target}: pushing the tab in shrinks the paper without losing paint (${wider.w} -> ${smaller.w})`);
+  // mouse wheel scrolls, ctrl-wheel zooms
+  await page.mouse.move(200, 300);
+  const c0 = (await st()).view.cell;
+  await page.keyboard.down('Control'); await page.mouse.wheel(0, -200); await page.keyboard.up('Control');
+  await page.waitForTimeout(100);
+  assert.ok((await st()).view.cell > c0, 'ctrl-wheel zooms in');
+
+  // the bucket wipes the paper only when held: a tap does nothing, a hold clears all paint and keeps the size
+  const size = (await st());
+  await openTray();
+  let gg = await geo(); const bucket = gg.items.find((i) => i.k === 'clear'); assert.ok(bucket, 'tray has the bucket');
+  const bx = css(gg, bucket.hit.x + bucket.hit.w / 2), by = css(gg, bucket.hit.y + bucket.hit.h / 2);
+  await touch('touchStart', [[bx, by]]); await page.waitForTimeout(120); await touch('touchEnd', []);
+  assert.equal((await st()).painted, size.painted, `${target}: a quick touch on the bucket wipes nothing`);
+  await touch('touchStart', [[bx, by]]); await page.waitForTimeout(1300); await touch('touchEnd', []);
+  const wiped = await st();
+  assert.equal(wiped.painted, 0, `${target}: holding the bucket wipes all paint`);
+  assert.deepEqual([wiped.w, wiped.h], [size.w, size.h], 'the paper keeps its size');
+  // undo brings the wiped paint back
+  await page.waitForTimeout(300);
+  await openTray(); await tapItem('undo');
+  assert.equal((await st()).painted, size.painted, `${target}: undo brings the wiped paint back`);
+  // undo goes back through strokes and paper size changes too
+  await openTray(); await tapItem('undo');
+  const earlier = await st();
+  assert.ok(earlier.w !== size.w || earlier.h !== size.h || earlier.painted !== size.painted, `${target}: undo steps back further (${size.w}x${size.h}/${size.painted} -> ${earlier.w}x${earlier.h}/${earlier.painted})`);
+  await page.mouse.move(200, 400); await page.mouse.down();
+  for (let i = 0; i < 12; i++) await page.mouse.move(200 + i * 6, 400 + i * 10);
+  await page.mouse.up();
+  assert.ok((await st()).painted > 0, 'painting after undo works');
+
+  // hang it: the tall painting hangs rolled up, behind the easel, and survives a reload in IndexedDB
+  await openTray(); await tapItem('hang');
+  await until(page, () => window.__studio.debug().mode === 'room', 'room after hanging');
+  const hung = await page.evaluate(() => { const a = window.__studio.activity('painting'), d = window.__studio.debug(), i = a._state().hung.length - 1; return { i, rect: a.room.slotRect(i, d.anchors.clothesline) }; });
+  assert.ok(hung.rect.h > 60, `${target}: a tall painting hangs taller than the standard frame (${hung.rect.h})`);
+  const fresh = await st();
+  assert.deepEqual([fresh.w, fresh.h], [fresh.natural.w, fresh.natural.h], `${target}: after hanging (even a pulled-out sheet) the next painting starts at the default size`);
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await page.waitForTimeout(300);
+  const dbs = await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name));
+  assert.ok(dbs.includes('sadies-studio'), `${target}: paintings are kept in IndexedDB`);
+  await page.reload();
+  await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room after reload');
+  const back = await st();
+  assert.equal(back.hung, 3, 'the tall painting survived the reload');
+  assert.deepEqual(errors, [], `${target}: no console errors`);
+  await ctx.close();
+  console.log(`ok  ${target} paper sizes and zoom`);
 }
 // Sadie's trill: it is a roll (about 28 pulses a second) that rises, not a coin chime.
 {

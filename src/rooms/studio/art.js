@@ -255,6 +255,15 @@ function upperDecor(p){
   }
 }
 
+// Just the easel, on a transparent layer the same size as the studio. The world
+// draws it over the clothesline so hung paintings go behind the easel's frame.
+export function paintStudioFront(g) {
+  ({ F, WH, BX, BY, LY } = g);
+  const p = new Px(WORLD_W, WH);
+  easel(p);
+  return p.done();
+}
+
 // Draw the whole studio (three zones, the dollhouse cutaway frame) into a new
 // world-sized bitmap. g is the geometry from studioGeometry(height).
 export function paintStudio(g) {
