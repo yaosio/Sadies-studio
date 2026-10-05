@@ -2,7 +2,8 @@
 // are made once per painting and size (paintings in the book never change).
 import { Px } from '../../art/px.js';
 import { PAPER, PAINT, PAGE, SHADOW, FRAME } from '../../art/palette.js';
-import { fitRect, resample } from './thumb.js';
+import { fitRect, resample, viewWindow } from './thumb.js';
+import { drawRoll, ROLL_T } from './roll-art.js';
 import { paperToCanvas } from './paper-art.js';
 import { mkBookIcon } from '../../ui/chooser-art.js';
 
@@ -14,19 +15,34 @@ function paintAs(p, w, h, cells) {
   return out.done();
 }
 
-// The whole painting, one pixel per cell (used for the flight to the line).
-export const paintingCanvas = (p) => paperToCanvas(p);
+// The painting (or the part of it a hung picture shows, win) one pixel per cell, for the flight to the line.
+export const paintingCanvas = (p, win) => paperToCanvas(p, win);
 
-// The painting shrunk to fit in a w x h box: { c, x, y, w, h } with x, y the offset inside the box.
-export function thumbFor(p, w, h) {
+// The painting shrunk to fit in a w x h box: { c, x, y, w, h, win, rr, rb } with x, y the offset inside
+// the box. A painting too big to show whole shows the box round its paint (see viewWindow); when that
+// is cut off, a roll of thickness ROLL_T * u is kept free along the right (rr) and bottom (rb) edge.
+export function thumbFor(p, w, h, u = 1) {
   let by = thumbs.get(p);
   if (!by) thumbs.set(p, (by = new Map()));
-  const key = w + 'x' + h;
+  const key = w + 'x' + h + 'x' + u;
   if (!by.has(key)) {
-    const r = fitRect(p.w, p.h, w, h);
-    by.set(key, { c: paintAs(p, r.w, r.h, resample(p, r.w, r.h)), x: r.x, y: r.y, w: r.w, h: r.h });
+    let win = viewWindow(p, w, h), rr = 0, rb = 0;
+    if (win.rolledR || win.rolledB) {
+      const t = ROLL_T * u;
+      win = viewWindow(p, w - (win.rolledR ? t : 0), h - (win.rolledB ? t : 0));
+      rr = win.rolledR ? t : 0; rb = win.rolledB ? t : 0;
+    }
+    const r = fitRect(win.w, win.h, w - rr, h - rb);
+    by.set(key, { c: paintAs(p, r.w, r.h, resample(p, r.w, r.h, win)), x: r.x, y: r.y, w: r.w, h: r.h, win, rr, rb });
   }
   return by.get(key);
+}
+
+const rolls = new Map(); // 'len:vertical' -> sprite
+function rollSprite(len, vertical) {
+  const key = len + ':' + vertical;
+  if (!rolls.has(key)) { const q = new Px(vertical ? ROLL_T : len, vertical ? len : ROLL_T); drawRoll(q, 0, 0, len, vertical); rolls.set(key, q.done()); }
+  return rolls.get(key);
 }
 
 // Where a card's painting sits inside it, and the picture area (screen pixels).
@@ -52,7 +68,9 @@ export function drawBookPage(c, W, H, u, paintings, layout, scroll) {
     c.fillStyle = FRAME; c.fillRect(card.x, y, card.w, card.h);
     const inner = cardInner({ x: card.x, y, w: card.w, h: card.h }, u);
     c.fillStyle = PAPER; c.fillRect(inner.x, inner.y, inner.w, inner.h);
-    const t = thumbFor(p, inner.w, inner.h);
+    const t = thumbFor(p, inner.w, inner.h, u);
     c.drawImage(t.c, inner.x + t.x, inner.y + t.y);
+    if (t.rb) { const len = Math.round(t.w / u), r = rollSprite(len, false); c.drawImage(r, inner.x + t.x, inner.y + t.y + t.h, t.w, t.rb); } // cut off: rolled up
+    if (t.rr) { const len = Math.round(t.h / u), r = rollSprite(len, true); c.drawImage(r, inner.x + t.x + t.w, inner.y + t.y, t.rr, t.h); }
   });
 }

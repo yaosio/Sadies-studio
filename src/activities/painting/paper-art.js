@@ -33,13 +33,14 @@ export function drawTiles(c, p, place, W, H) {
   }
 }
 
-// A picture of the whole painting, one pixel per cell, on paper-colored ground.
-export function paperToCanvas(p) {
+// A picture of the painting, one pixel per cell, on paper-colored ground: all of it, or just
+// the part r ({ x0, y0, w, h } in cells).
+export function paperToCanvas(p, r = { x0: 0, y0: 0, w: p.w, h: p.h }) {
   const cv = document.createElement('canvas');
-  cv.width = p.w; cv.height = p.h;
+  cv.width = r.w; cv.height = r.h;
   const g = cv.getContext('2d');
-  g.fillStyle = PAPER; g.fillRect(0, 0, p.w, p.h);
-  for (const { tx, ty, t } of p.tilesIn(0, 0, p.w - 1, p.h - 1)) { const o = tileOrigin(p, tx, ty); g.drawImage(tileCanvas(t), o.x, o.y); }
+  g.fillStyle = PAPER; g.fillRect(0, 0, r.w, r.h);
+  for (const { tx, ty, t } of p.tilesIn(r.x0, r.y0, r.x0 + r.w - 1, r.y0 + r.h - 1)) { const o = tileOrigin(p, tx, ty); g.drawImage(tileCanvas(t), o.x - r.x0, o.y - r.y0); }
   return cv;
 }
 

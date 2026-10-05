@@ -13,7 +13,7 @@ import { drawTiles, paperToCanvas, drawTicks } from './paper-art.js';
 import { layoutTray, inRect, DEFAULT_DRAWER } from './tray.js';
 import { stampArt, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE } from './stamps.js';
 import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, drawEdgeTab, mkBack, mkChevron, mkDrawerPaints, drawWall, mkDrawerTools, mkDrawerStamps, mkStampThumb, mkStampSize, drawShelf, drawTrayBack, drawHandle } from './art.js';
-import { drawClothesline, slotRect, slotPicture } from './clothesline-art.js';
+import { drawClothesline, slotRect, slotPicture, hangShape } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
 import { savePng } from './export.js';
 import { addFinished, lineToBook, bookToLine, remove, splitLoaded, lineIsFull, takeToEasel } from './collection.js';
@@ -450,7 +450,7 @@ export function createPainting(env) {
   function beginHangFromBook(i) {
     const p = book[i];
     if (!p || lineIsFull(hung)) return null;
-    const inner = cardInner(cardRect(i), u), t = thumbFor(p, inner.w, inner.h), img = paintingCanvas(p);
+    const inner = cardInner(cardRect(i), u), t = thumbFor(p, inner.w, inner.h, u), img = paintingCanvas(p, hangShape(p).win);
     bookToLine(hung, book, i);
     hangingIndex = hung.length - 1; lastDest = 'back'; lineDirty = true;
     persist();
@@ -469,10 +469,11 @@ export function createPainting(env) {
   // gives the world what it needs to animate the flight. Null if the paper is bare.
   function beginHang() {
     if (isBlank(current)) return null;
-    const src = paperCanvas(), img = document.createElement('canvas');
+    const win = hangShape(current).win; // a very big painting hangs as the part round its paint
+    const whole = win.w === current.w && win.h === current.h, src = whole ? paperCanvas() : paperToCanvas(current, win), img = document.createElement('canvas');
     img.width = src.width; img.height = src.height;
     img.getContext('2d').drawImage(src, 0, 0);
-    const from = placeGrid(current.w, current.h, W, H); // the whole paper, however zoomed
+    const from = whole ? placeGrid(current.w, current.h, W, H) : fitRect(win.w, win.h, W, H); // the whole paper, however zoomed; or that part filling the screen
     const done = current;
     const { dest, index } = addFinished(hung, book, done); // a full line sends it to the book; nothing is dropped
     hangingIndex = dest === 'line' ? index : -1;

@@ -128,6 +128,10 @@ so) or **proposed** (a default picked, awaiting the user).
   empty paper still looks like moving. Not dots across the screen, no fibres on the paper.
 - [confirmed] Paper is stored as sparse 64x64 tiles that exist only once painted on; undo keeps
   only the touched tiles. The saved text format is unchanged, so old paintings load as before.
+- [confirmed] Hung and booked paintings of a very big paper are trimmed to their paint and never
+  shown at more than 8 cells to an art pixel; what is still cut off is rolled up, the bottom
+  edge as before and the right edge for wide ones. The 8 is [proposed]. Reason: the user's idea
+  ("they already curl up when too large"); wide pictures roll up on the edge.
 - [proposed] Zoom stops at 32 canvas
   pixels per cell. A double tap within 28 art pixels and about a third of a second
   zooms instead of dabbing twice.
