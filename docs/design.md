@@ -17,8 +17,8 @@ list.
 ## Principles
 
 - **Place over menu.** The room is the menu. Objects are activities.
-- **Activity gets the screen.** When painting, the canvas is as big as the
-  screen allows. It never shrinks into a small box inside a big interface.
+- **Activity gets the screen.** When painting, the paper is the entire screen.
+  Tools are small, tucked at an edge and collapsible, and never shrink it.
 - **Tools are objects.** Paint pots, brushes, a sponge and a cloth sit on
   shelves at the screen edge, like real things.
 - **Show, don't tell.** The child may not read. Pictures, motion and Sadie's
@@ -32,15 +32,17 @@ list.
 - Office-software look: menu bars, toolbars, panels, chunky window frames.
 - Babyish look: giant blobs, rainbow primary-color mush, baby-talk.
 - A menu or home screen that lists activities.
-- A tiny canvas inside a large interface.
+- A tiny canvas inside a large interface, or any panel that takes paper away.
 - Smoothed, blurry or vector-looking art.
 - Gradients (use dithering).
 - Accounts, ads, network features, anything needing a parent to operate.
 
 ## Audio
 
-Sounds are synthesized in code. Sadie makes one happy sound when the child
-starts and sounds when touched. She never makes noise on her own.
+Sounds are synthesized in code. Sadie trills once when the page loads (or on the
+first touch if the browser blocks sound until then) and
+purrs when petted; other objects make small sounds. She never makes noise on
+her own.
 
 ## Not yet decided
 

@@ -10,18 +10,24 @@ a cold session needs must be written down here or in the linked docs.
 
 ## Status
 
-Pre-code. The repo holds docs only. An approved single-file mockup exists
-(see [docs/mockup.md](docs/mockup.md)); the real app has not been started.
+First version built: the studio room (drag to look around), gliding in to the
+easel, full-screen painting, "hang it up" to the clothesline, autosave, sound.
+The clothesline holds 13; past that paintings go into the book on the floor. Other room objects only make Sadie talk. The look comes from the approved
+mockup ([docs/mockup.md](docs/mockup.md)).
 
 ## Stack and commands
 
-Proposed, not yet confirmed by the user (see [docs/decisions.md](docs/decisions.md)):
-plain HTML, CSS and JavaScript (ES modules), canvas rendering, no build step,
-as few dependencies as possible. Update this section the moment code exists:
+Plain HTML, CSS and JavaScript (ES modules), canvas, no framework, no runtime
+dependencies, no build step for development (see [docs/decisions.md](docs/decisions.md)).
+Node 22 and Playwright (dev only) run the checks.
 
-- Run: _not set up yet_
-- Test: _not set up yet_
-- Smoke test (run before finishing any change): _not set up yet_
+- Run: `npm start`, then open http://localhost:8000/index.html (add `?still`
+  to freeze ambient motion).
+- Test: `npm test` (logic, no browser).
+- Smoke test (run before finishing any change): `npm run smoke`.
+- Screenshots: `npm run visual` (`npm run visual:update` after an intended look change).
+- Everything: `npm run check`. Single-file build for artifacts: `npm run build`
+  writes `dist/index.html` (see [docs/architecture.md](docs/architecture.md)).
 
 ## Read this when...
 
@@ -32,16 +38,16 @@ Open only the file you need. Do not read them all.
 | [docs/design.md](docs/design.md) | you need to know what the app is, who it is for, or what was ruled out |
 | [docs/art-style.md](docs/art-style.md) | you draw, change or add any visual |
 | [docs/world.md](docs/world.md) | you touch the room, camera, doorways, Sadie or her speech |
-| [docs/painting.md](docs/painting.md) | you touch the easel, canvas, tools, paints or the clothesline |
-| [docs/architecture.md](docs/architecture.md) | you add a room or activity, or decide where code goes |
+| [docs/painting.md](docs/painting.md) | you touch the easel, canvas, tools, paints, the clothesline or the book |
+| [docs/architecture.md](docs/architecture.md) | you add a room or activity, change the build, or decide where code goes |
 | [docs/saving.md](docs/saving.md) | you read or write anything saved on the device |
 | [docs/testing.md](docs/testing.md) | you write or run tests, or screenshot checks |
 | [docs/engineering.md](docs/engineering.md) | you start a feature, or want the checklist of things to plan for (safety, privacy, access, offline, performance, audio, backup, browsers, assets) |
 | [docs/decisions.md](docs/decisions.md) | you are about to change or question an earlier choice |
 | [docs/mockup.md](docs/mockup.md) | you need the reference look, or facts the mockup already settled |
 
-Once code exists, each room and activity folder has its own short README.
-Read that before editing that folder.
+Each room and activity folder has its own short README (`src/rooms/studio/`,
+`src/activities/painting/`). Read it before editing that folder.
 
 ## Rules
 
@@ -52,10 +58,11 @@ Read that before editing that folder.
    dialogs that look like office software.
 3. Nothing babyish. No primary-color blob shapes, no baby-talk. Sadie is dry,
    a little grumpy and kind.
-4. Pixel art is never smoothed. Integer scaling only, crisp edges, dithering
-   instead of gradients. See [docs/art-style.md](docs/art-style.md).
-5. The activity never shrinks to a thumbnail. A canvas or activity gets as much
-   of the screen as fits, and is never framed by chunky chrome.
+4. Pixel art is never smoothed. Integer scaling only (except the painting
+   paper's smooth zoom), crisp edges, dithering instead of gradients. See [docs/art-style.md](docs/art-style.md).
+5. An activity never shrinks to a thumbnail. Painting takes the ENTIRE screen
+   with the least possible UI on top (tools small, tucked at an edge, never
+   shrinking the canvas). Never frame an activity in chunky chrome.
 6. Must work in portrait and landscape, with mouse and touch, from the first
    commit. Never retrofit.
 7. Saved data is versioned. Old paintings must keep loading.

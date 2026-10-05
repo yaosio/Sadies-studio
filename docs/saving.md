@@ -1,35 +1,62 @@
 # Saving
 
-Everything the child makes stays on the device, in the browser's local storage.
-No accounts, no server.
+Everything the child makes stays on the device, in the browser's IndexedDB
+(localStorage if IndexedDB is missing or blocked). No accounts, no server. Code:
+`src/save/`.
 
 ## Rule
 
 Saved data carries a **version number from day one**. Any change to what is
-saved adds a migration so old paintings keep loading. Never drop or reinterpret
-old data without a migration and a test.
+saved adds a migration step in `src/save/migrate.js` and a fixture in
+`tests/fixtures/` so old paintings keep loading. Never drop or reinterpret old
+data without both.
 
-## What the mockup does (starting point)
+## Format (version 2)
 
-- Key `sadies-studio-v1` holds JSON `{ p: [...], c: ... }`.
-- `p` is the hung paintings (max 13), `c` the painting on the easel.
-- A painting is a string of 72 x 54 characters, one per pixel, `A` (paper) to
-  `K` (color 10), i.e. char code minus 65.
-- Saves are debounced about 500 ms after a stroke.
-- Reads and writes are wrapped in try/catch; failure means the app still runs
-  without saving.
+- Logically `{ version: 2, activities: { painting: { current, hung } } }`.
+  Each activity owns its own entry (`store.get(id)` / `store.set(id, state)`).
+  In IndexedDB (database `sadies-studio`, store `activities`) each activity is one
+  record `{ id, version, state }`; in localStorage the whole object is one key,
+  `sadies-studio`.
+- A painting is `{ w, h, d }`: width, height, and `d`, one letter per cell, `A`
+  (bare paper) to `K` (paint 10), with a run count after repeated letters
+  (`A12B` is twelve A then one B). See `src/save/codec.js`.
+- `current` is the painting on the easel; `hung` the clothesline, oldest first,
+  at most 13; `book` the book of paintings that did not fit, oldest first (any
+  number). `book` is optional: a save without it (made before the book) loads
+  with an empty book, so the version stays 2. Fixtures: `save-v2.json` (no book),
+  `save-v2-book.json`.
+- Palette order is saved data: paint value N means entry N of `PAINT` in
+  `src/art/palette.js`. Never reorder or insert.
+- Version 1 was the mockup (`{ p, c }`, 72 x 54, key `sadies-studio-v1`). It is
+  read and migrated if found.
 
-## Proposed for the real app
+## Behavior
 
-- An explicit `version` field in the saved object, plus one migration function
-  per version step.
-- Painting size (width, height) stored with each painting so the grid can
-  change later.
-- Every storage read or write is guarded; a corrupt or missing save falls back
-  to a fresh start, never a crash.
-- Tests load a saved fixture from every past version.
+- The app starts after the storage is read (`openStore` in `src/save/store.js`).
+  First start with an empty database copies whatever localStorage held (including
+  the mockup's v1) into IndexedDB; after that localStorage is not read again.
+- IndexedDB holds far more than localStorage's roughly 5 MB, which matters for
+  big paper. Painting size is limited by the codec (512 a side) and the paper
+  limit in `grid.js` (320).
+- Writes are debounced about 500 ms after a stroke, and flushed when the page
+  is hidden or closed. An IndexedDB write begun while the page closes normally
+  finishes, but is not guaranteed to.
+- Every read and write is guarded. Missing, full, blocked or corrupt storage
+  means a fresh start and an app that still runs, never a crash.
+- With no save at all, two example paintings hang on the clothesline.
 
-## Decided
+## Not built yet
 
-- Progress is saved per activity; each activity owns its saved state.
-- Any user can save a painting out as an image file. Not built yet.
+- Backup or restore across devices.
+- One record per painting (today one per activity). The book makes this matter
+  sooner: every save rewrites the whole record, book included (each painting's
+  text is encoded once and reused). Split it if saving ever feels slow.
+- Asking the browser to keep the data permanently (`navigator.storage.persist()`).
+
+## Saving out
+
+Long-press (about 0.65 s) a hung painting in the room (or a card in the book) and
+choose the save button: sparkles, a sound, and the painting is offered as a PNG (`sadies-painting-N.png`, each cell a whole-number
+square, about 1600 px on the long side). Code: `src/activities/painting/export.js`.
+Inside an artifact the host shows its own confirmation (`downloads` capability).
