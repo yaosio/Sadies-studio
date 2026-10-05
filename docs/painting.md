@@ -107,7 +107,7 @@ place on the line (a bare easel just gives way), so nothing is lost. Hanging it 
 puts it at the end of the line, or in the book when the line is full.
 
 **Hold a hung painting** (about 0.65 s). Right after the finger lands, a big ring of dots
-(wider than a fingertip, so a large finger cannot cover it) fills in clockwise around the
+(about 140 css px across, so a big fingertip fits in the middle with the ring visible all round it) fills in clockwise around the
 touch to show that holding does something; at the end the rest of the screen dims and three big
 wooden buttons, pictures only, appear under it: **save** (a down arrow, offers the
 PNG), **to the book** (a closed book), **delete** (a trash can). Delete has no undo,

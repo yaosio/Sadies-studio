@@ -70,7 +70,7 @@ export function drawTargetFrame(c, t, u) {
 // A big ring of dots, centered on the touch, that fills in clockwise from the top while a
 // finger is held (progress 0..1). It is wider than a finger so a large fingertip cannot cover it.
 export function drawHoldRing(c, cx, cy, u, progress) {
-  const n = 24, r = 22 * u, d = 4 * u, e = u, lit = Math.floor(Math.min(1, progress) * n + 0.0001);
+  const n = 32, r = 34 * u, d = 5 * u, e = u, lit = Math.floor(Math.min(1, progress) * n + 0.0001);
   for (let k = 0; k < n; k++) {
     const a = (k / n) * Math.PI * 2 - Math.PI / 2, x = Math.round(cx + Math.cos(a) * r - d / 2), y = Math.round(cy + Math.sin(a) * r - d / 2);
     c.fillStyle = 'rgba(42,34,56,.8)';
@@ -82,6 +82,6 @@ export function drawHoldRing(c, cx, cy, u, progress) {
 
 // Where the hold ring is centered for a finger at (x, y): on the touch, nudged in so the whole ring stays on screen.
 export function holdRingSpot(x, y, W, H, u) {
-  const m = 26 * u;
+  const m = 40 * u;
   return { x: Math.max(m, Math.min(W - m, x)), y: Math.max(m, Math.min(H - m, y)) };
 }
