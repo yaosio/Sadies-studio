@@ -1,4 +1,5 @@
-// Saving a painting out as a PNG picture (long-press a hung painting in the room).
+// Saving out: a painting as a PNG (long-press a hung painting in the room), or everything as one file
+// (from the book's page).
 import { PAPER, PAINT } from '../../art/palette.js';
 
 const TARGET_SIDE = 1600; // the picture is about this many pixels on its long side
@@ -15,11 +16,28 @@ export function paintingToCanvas(p) {
   return cv;
 }
 
-// Hand the file to the viewer. Hosts that run the page in a sandbox offer their
-// own save (the `downloads` capability); otherwise a normal download link works.
-export async function savePng(p, filename) {
-  const blob = await new Promise((done) => paintingToCanvas(p).toBlob(done, 'image/png'));
-  if (!blob) return false;
+// Hand a file to the viewer. On a phone or tablet the system share sheet opens, where they
+// pick where it goes (Drive, Files, messages...). Elsewhere, and if the share sheet is not
+// available, hosts that run the page in a sandbox offer their own save (the `downloads`
+// capability); otherwise a normal download link works.
+const phoneLike = () => { try { return matchMedia('(pointer: coarse)').matches && !!navigator.canShare; } catch (e) { return false; } };
+
+async function shareFile(blob, filename) {
+  // A browser may refuse some file types in the share sheet: JSON is retried as plain text.
+  const types = blob.type === 'application/json' ? ['application/json', 'text/plain'] : [blob.type];
+  for (const type of types) {
+    const file = new File([blob], filename, { type });
+    if (!navigator.canShare({ files: [file] })) continue;
+    try { await navigator.share({ files: [file] }); return true; } catch (e) {
+      if (e && e.name === 'AbortError') return true; // they closed the sheet: that was their answer
+      return false; // blocked or unavailable here: fall back to saving
+    }
+  }
+  return false;
+}
+
+export async function saveFile(blob, filename) {
+  if (phoneLike() && (await shareFile(blob, filename))) return true;
   try {
     const downloads = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
     if (downloads) { await downloads.save({ filename, data: blob }); return true; }
@@ -29,4 +47,25 @@ export async function savePng(p, filename) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
   return true;
+}
+
+export async function savePng(p, filename) {
+  const blob = await new Promise((done) => paintingToCanvas(p).toBlob(done, 'image/png'));
+  return blob ? saveFile(blob, filename) : false;
+}
+
+// Everything in one file (see save/backup.js).
+export const saveJson = (text, filename) => saveFile(new Blob([text], { type: 'application/json' }), filename);
+
+// Asks for a file (the system picker) and gives its text, or null if they cancel.
+// Must run from a tap, or the browser will not open the picker.
+export function pickFile() {
+  return new Promise((done) => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.json,application/json,text/plain'; input.style.display = 'none';
+    input.onchange = async () => { const f = input.files && input.files[0]; input.remove(); try { done(f ? await f.text() : null); } catch (e) { done(null); } };
+    input.addEventListener('cancel', () => { input.remove(); done(null); });
+    document.body.appendChild(input);
+    input.click();
+  });
 }

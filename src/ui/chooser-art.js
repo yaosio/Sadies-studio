@@ -13,6 +13,26 @@ export function mkSaveIcon() {
   p.outline('#23406a'); return p.done();
 }
 
+// Everything in one file: a little stack of papers with the save arrow over it.
+export function mkSaveAllIcon() {
+  const p = new Px(20, 22);
+  p.r(2, 15, 14, 5, '#fff6e8'); p.r(4, 13, 14, 5, '#f6ead4'); p.r(6, 11, 12, 4, '#fff6e8');
+  p.r(2, 19, 14, 1, '#a89478'); p.r(15, 15, 1, 4, '#a89478'); p.r(17, 13, 1, 4, '#a89478');
+  p.r(9, 0, 4, 6, '#4aa0e8'); p.r(9, 0, 1, 6, '#8ccaff');
+  for (let k = 0; k < 4; k++) p.r(6 + k, 6 + k, 10 - 2 * k, 1, '#4aa0e8');
+  p.outline('#23406a'); return p.done();
+}
+
+// Bringing a file back in: the same tray with the arrow going up.
+export function mkLoadIcon() {
+  const p = new Px(20, 22);
+  p.r(8, 8, 5, 9, '#5bbf6a'); p.r(8, 8, 1, 9, '#a6f0b0');
+  for (let k = 0; k < 6; k++) p.r(4 + k, 7 - k, 13 - 2 * k, 1, '#5bbf6a');
+  p.r(2, 17, 17, 4, '#d8c8b0'); p.r(2, 17, 17, 1, '#fff6e8'); p.r(2, 20, 17, 1, '#a89478');
+  p.r(4, 17, 1, 2, '#a89478'); p.r(16, 17, 1, 2, '#a89478');
+  p.outline('#23503a'); return p.done();
+}
+
 // A trash can with a lid.
 export function mkTrashIcon() {
   const p = new Px(20, 22);

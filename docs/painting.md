@@ -167,7 +167,8 @@ to scroll, the door top-left leaves. **Tap a card** to paint on it (it goes to t
 the easel's painting takes its place in the book). **Hold a card** (same ring)
 for the same kind of choices: **save**, **hang** (the peg; it flies to the line; with
 the line full it is dimmed and Sadie says the line is full, nothing moves) and
-**delete** (held). Code: `book.js` (layout, pure), `book-art.js` (drawing),
+**delete** (held). Two small corner buttons (top right) save everything as one file or merge a file back in;
+see [saving.md](saving.md). Code: `book.js` (layout, pure), `book-art.js` (drawing),
 `collection.js` (where paintings move, pure), the chooser in `src/ui/`.
 
 ## Autosave

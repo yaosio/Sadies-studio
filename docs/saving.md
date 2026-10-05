@@ -50,7 +50,7 @@ data without both.
 
 ## Not built yet
 
-- Backup or restore across devices.
+- Automatic backup (Drive or any cloud). Parked by the user; see the decision log.
 - One record per painting (today one per activity). The book makes this matter
   sooner: every save rewrites the whole record, book included (each painting's
   text is encoded once and reused). Split it if saving ever feels slow.
@@ -58,7 +58,25 @@ data without both.
 
 ## Saving out
 
+**Everything in one file.** On the book's page two small buttons sit in the top-right
+corner (pictures only, like the door): **save everything** (a stack of papers) and **bring
+a file back** (an up arrow). Save everything writes `sadies-studio-backup-YYYY-MM-DD.json`:
+an ordinary version-2 save plus `{ app, kind: 'backup', saved }`, holding the easel, the line
+and the book. Code: `src/save/backup.js` (pure), `export.js` (file side). Bringing a file back
+**merges**: nothing is replaced or removed; a painting in the file that is not already here
+(same size and paint) is added, one already here is skipped, and a painting changed since the
+backup is a different painting so both stay. Added ones hang on the line while it has room,
+then go to the book. A file that is not ours, or bare paper, adds nothing and Sadie says so.
+Old saves (version 1 mockup, plain version 2) are accepted as backups too. Any new saved
+field must also be carried by `buildBackup`/`parseBackup`.
+
+**Where it goes.** On a phone or tablet (coarse pointer and a browser that can share files)
+the system **share sheet** opens, so the parent picks Drive, Files, messages and so on. Elsewhere
+(desktop) it downloads as before; so does anything where sharing is blocked or fails. Inside an
+artifact the host's own `downloads` save is the fallback. JSON is retried as plain text if the
+share sheet refuses its type. The picture saves (below) use the same path.
+
 Long-press (about 0.65 s) a hung painting in the room (or a card in the book) and
-choose the save button: sparkles, a sound, and the painting is offered as a PNG (`sadies-painting-N.png`, each cell a whole-number
+choose the save button: sparkles, a sound, and the painting is offered (share sheet on a phone, download on desktop) as a PNG (`sadies-painting-N.png`, each cell a whole-number
 square, about 1600 px on the long side). Code: `src/activities/painting/export.js`.
 Inside an artifact the host shows its own confirmation (`downloads` capability).
