@@ -102,7 +102,7 @@ a ribbon at the bottom. The roll is only how it is drawn: nothing is cut from th
 saved painting or the PNG. The first time the app opens, two example paintings hang there.
 
 **Tap a hung painting** (the examples too) to paint on it: the camera glides to the easel
-and the painting is there at its own size. The painting that was on the easel takes its
+and the painting is there at its own size, in the table view so the *whole* painting is in sight (not the zoomed-in size a new sheet opens at; double tap or pinch to zoom in). It stays that way until the next fresh painting. The painting that was on the easel takes its
 place on the line (a bare easel just gives way), so nothing is lost. Hanging it again
 puts it at the end of the line, or in the book when the line is full.
 

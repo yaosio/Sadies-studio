@@ -176,6 +176,8 @@ so) or **proposed** (a default picked, awaiting the user).
   GitHub > Settings > Rules > Rulesets. (Sessions cannot change repo
   settings; the user applied it on 2026-10-05.)
 
+- [confirmed] A painting taken from the line or book opens on the easel with the whole painting in view (table view), not zoomed in (user, 2026-10-05).
+
 ## Open questions
 
 

@@ -32,6 +32,7 @@ export function createPainting(env) {
   let current = null; // the painting on the easel
   let hung = []; // paintings on the clothesline, oldest first
   let book = []; // paintings in the book, oldest first (see collection.js)
+  let showWhole = false; // a painting taken from the line or book opens with all of it in view, until the next fresh painting
   let reopened = false; // the easel painting was just taken from the line or book
   let inBook = false, bookScroll = 0, bookPtr = null, lastDest = 'line'; // the book view; where the last hung painting went
   let hangingIndex = -1; // a painting still flying to the line
@@ -70,6 +71,7 @@ export function createPainting(env) {
   function freshPainting() {
     const g = naturalGrid(W, H); // a new painting always starts at the default size
     current = newPainting(g.w, g.h);
+    showWhole = false;
     undoStack.length = 0;
     startView();
     paperDirty = true; version++;
@@ -90,6 +92,7 @@ export function createPainting(env) {
   }
   function startView() {
     anim = null;
+    if (showWhole) { setView(tableView()); return; }
     const cell = startCell(current.w, current.h, W, H);
     setView({ cell, ox: Math.round((W - current.w * cell) / 2), oy: 0 }); // centered across, at the top
   }
@@ -428,7 +431,7 @@ export function createPainting(env) {
   // The painting p (from takeToEasel) is now the one on the easel.
   function putOnEasel(p) {
     current = p; undoStack.length = 0; paperDirty = true; version++; lineDirty = true; lastTap = null;
-    strokes = 0; usedColors = new Set(); manyShown = false; reopened = true;
+    strokes = 0; usedColors = new Set(); manyShown = false; reopened = true; showWhole = true;
     persist();
   }
 

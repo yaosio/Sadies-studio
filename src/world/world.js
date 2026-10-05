@@ -5,7 +5,7 @@
 // interface (see docs/architecture.md).
 import { clamp } from '../art/px.js';
 import { PAPER, WOOD_TRIM, FRAME, PAGE } from '../art/palette.js';
-import { sadieSprite, SADIE_W, SADIE_H } from '../art/sadie.js';
+import { sadieSprite, SADIE_W, SADIE_H, SADIE_PAD } from '../art/sadie.js';
 import { CHEVRON_LEFT, CHEVRON_RIGHT } from '../art/effects.js';
 import { pick, lerp, lerpRect, ease } from '../engine/util.js';
 import { chooseScale, uiUnit } from '../engine/view.js';
@@ -415,7 +415,7 @@ export function createWorld(opts) {
     for (const id in activities) activities[id].room.drawLine(c, anchors.clothesline); // hung paintings hang on the wall,
     if (front) c.drawImage(front, 0, 0); // behind the easel and everything else
     for (const id in activities) activities[id].room.drawBoard(c, anchors.board);
-    c.drawImage(sadieSprite({ blinking: T < sadie.blinkUntil, flick: sadie.flick, sway: !RM && !still }, T), anchors.sadie.x, anchors.sadie.y - Math.round(sadie.hop));
+    c.drawImage(sadieSprite({ blinking: T < sadie.blinkUntil, flick: sadie.flick, sway: !RM && !still }, T), anchors.sadie.x - SADIE_PAD, anchors.sadie.y - Math.round(sadie.hop));
     fx.draw(c);
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (trans) drawTransitionPaper();

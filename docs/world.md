@@ -30,6 +30,8 @@ Leaving reverses it. Tapping Sadie pets her. Escape or the door exits. The
 camera never snaps (it does with reduced motion). Hanging a painting flies it
 from the full screen to the clothesline while the camera pulls back.
 
+Sadie's sprite has spare room to her left (`SADIE_PAD` in `src/art/sadie.js`) so her wagging tail is never cut off; the world draws it that far left of her anchor. The smoke test checks every wag pose.
+
 ## Sadie's speech
 
 Short speech bubbles that pop in near Sadie and fade. Points at her; docks to
