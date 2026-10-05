@@ -71,6 +71,13 @@ so) or **proposed** (a default picked, awaiting the user).
   by the next session.
 - [proposed] Keep the mockup's data format as the starting point for saves
   (72 x 54 grid, 11 values). Reason: user already likes how it behaves.
+- [proposed] `main` is protected by a GitHub ruleset "Protect main": changes
+  need a pull request, force-pushes and deletion are blocked, no required
+  human reviews (one human), repo admin can bypass. No CI exists yet, so no
+  status check is required; add the real check name once a workflow has run.
+  Reason: stops accidental direct pushes and history rewrites. Change it at
+  GitHub > Settings > Rules > Rulesets. (Not yet applied: sessions cannot
+  change repo settings, the user sets it.)
 
 ## Open questions
 
