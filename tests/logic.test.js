@@ -9,7 +9,7 @@ import { createStore, openStore, KEY } from '../src/save/store.js';
 import { newPainting, isBlank, naturalGrid, placeGrid, stamp, putStamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, peekTabs, MAX_CELL, wallOver } from '../src/activities/painting/grid.js';
 import { Paper, TILE } from '../src/activities/painting/paper.js';
 import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
-import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
+import { fitRect, resample, fitted, viewWindow } from '../src/activities/painting/thumb.js';
 import { layoutTray, ITEM_IDS, DRAWER_IDS, itemsFor } from '../src/activities/painting/tray.js';
 import { STAMPS, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE, stampArt } from '../src/activities/painting/stamps.js';
 import { PAINT } from '../src/art/palette.js';
@@ -162,7 +162,7 @@ test('pull-out tabs show only while the whole paper is on screen, one per edge',
 
 test('hung paintings: wide ones are shorter, tall ones drop and roll up past the limit', () => {
   const art = (w, h) => ({ w, h, cells: new Uint8Array(w * h) });
-  assert.deepEqual(hangShape(null), { ph: 27, rolled: false, full: 27 });
+  assert.deepEqual({ ...hangShape(null), win: undefined }, { ph: 27, rolled: false, rolledR: false, full: 27, win: undefined });
   assert.equal(hangShape(art(72, 54)).ph, 27);
   assert.ok(hangShape(art(162, 54)).ph < 27 && hangShape(art(162, 54)).ph >= 9);
   const mid = hangShape(art(54, 117)); // a phone-shaped sheet hangs in full
@@ -206,6 +206,38 @@ test('thumbnails keep thin lines and letterbox', () => {
   assert.deepEqual(fitRect(100, 50, 36, 27), { x: 0, y: 4, w: 36, h: 18 });
   const f = fitted(p, 36, 27);
   assert.equal(f.length, 36 * 27);
+});
+
+test('easel board shows just the painted part of a big paper', () => {
+  const big = newPainting(2000, 2000);
+  for (let x = 900; x < 980; x++) for (let y = 1000; y < 1060; y++) big.set(x, y, 3);
+  const f = fitted(big, 36, 27), n = f.filter((c) => c === 3).length;
+  assert.ok(n > 36 * 27 * 0.5, 'the paint fills most of the board, not a speck');
+  big.set(1500, 1500, 3); // the board follows live changes
+  assert.ok(fitted(big, 36, 27).filter((c) => c === 3).length < n, 'a far-off mark shrinks the view');
+});
+
+test('big paintings: trimmed to their paint, never under 1/8, rolled up where cut off', () => {
+  const small = newPainting(72, 54);
+  assert.deepEqual(viewWindow(small, 36), { x0: 0, y0: 0, w: 72, h: 54, rolledR: false, rolledB: false }, 'a normal paper shows whole');
+  const big = newPainting(2000, 2000);
+  for (let x = 900; x < 980; x++) for (let y = 1000; y < 1060; y += 3) big.set(x, y, 3); // paint in an 80 x 60 box
+  const w = viewWindow(big, 36);
+  assert.ok(w.x0 <= 900 && w.x0 + w.w >= 980 && w.y0 <= 1000 && w.y0 + w.h >= 1058, 'the window holds all the paint');
+  assert.ok(!w.rolledR && !w.rolledB && w.w < 200, 'trimmed, nothing cut off');
+  const wide = newPainting(2000, 2000);
+  wide.set(100, 100, 3); wide.set(1900, 130, 3); // 1800 wide
+  const vw = viewWindow(wide, 36);
+  assert.ok(vw.rolledR && vw.w === 36 * 8 && vw.x0 === 100, 'too wide: shows the left part, right edge rolled up');
+  const h = hangShape(wide);
+  assert.ok(h.rolledR && slotRect(0, { x: 0, y: 0 }, wide).w > 40, 'a right roll widens the frame');
+  const tall = newPainting(2000, 2000);
+  tall.set(500, 100, 3); tall.set(560, 1900, 3);
+  assert.ok(hangShape(tall).rolled && !hangShape(tall).rolledR, 'tall: bottom rolled, as before');
+  const box = viewWindow(big, 30, 22); // a book card
+  assert.ok(box.w / 30 <= 8 && box.h / 22 <= 8, 'a card never squeezes past 8 cells a pixel');
+  const r = resample(big, 36, 27, w);
+  assert.ok(r.some((c) => c === 3), 'the trimmed thumbnail shows the paint');
 });
 
 test('tray fits the screen at every shape, with every drawer open', () => {

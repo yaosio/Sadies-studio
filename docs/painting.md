@@ -138,7 +138,12 @@ dropped. Each hangs at 36 art pixels
 wide and as tall as its shape says (thin lines survive shrinking). Wide ones are
 shorter. Tall ones drop down; past about 84 pixels the rest is **rolled up** with
 a ribbon at the bottom. The roll is only how it is drawn: nothing is cut from the
-saved painting or the PNG. The first time the app opens, two example paintings hang there.
+saved painting or the PNG. A very big paper (more than 8 cells to an art pixel, so
+anything over about 290 cells wide) hangs trimmed to the box round its paint, never
+shown smaller than 8 cells to a pixel; if the paint is still bigger, a wide one also
+rolls up its right edge (a slimmer roll between the frames) and shows its top left.
+The same rule makes the book's cards, and the easel board in the room (trimmed only, no roll, and recomputed as you paint). Code: `viewWindow` in `thumb.js`, `hangShape` in
+`clothesline-art.js`, `thumbFor` in `book-art.js`, the roll in `roll-art.js`. The first time the app opens, two example paintings hang there.
 
 **Tap a hung painting** (the examples too) to paint on it: the camera glides to the easel
 and the painting is there at its own size, in the table view so the *whole* painting is in sight (not the zoomed-in size a new sheet opens at; double tap or pinch to zoom in). It stays that way until the next fresh painting. The painting that was on the easel takes its
