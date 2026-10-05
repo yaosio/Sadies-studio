@@ -73,6 +73,9 @@ tabs on the paper.
 - **Paint pots** (10): tap one to choose a color.
 - **Small brush** (radius 1), **big brush** (radius 2).
 - **Grid switch**: see above.
+- **Bucket**: hold it (about 0.9 s, water rises in it) to wipe every bit of paint
+  off the working paper. The paper keeps its size. A quick touch only makes Sadie
+  explain. It must be a hold because nothing undoes it.
 - **Sponge**: dabs, random partial coverage.
 - **Cloth**: erases to paper. Choosing a pot while holding the cloth switches
   back to the big brush.

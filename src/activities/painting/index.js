@@ -10,7 +10,7 @@ import { TOOLS, DEFAULT_TOOL } from './tools.js';
 import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MAX_HUNG, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
 import { fitRect, fitted } from './thumb.js';
 import { layoutTray, inRect } from './tray.js';
-import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkGridIcon, mkArrow, drawEdgeTab, drawGridDots, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
+import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkGridIcon, mkClear, mkArrow, drawEdgeTab, drawGridDots, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
 import { savePng } from './export.js';
@@ -29,7 +29,7 @@ export function createPainting(env) {
   let view = { cell: 1, ox: 0, oy: 0 }; // zoom and scroll: cell size, and where the paper's corner is on screen
   let anim = null, movedAt = -1e9; // a smooth move of the view, and when the view last moved
   let pan = null, pinch = null, grow = null, lastPtr = null, lastTap = null;
-  let trayKey = '';
+  let trayKey = '', clearHold = null; // clearHold: when a finger went down on the bucket
   const hinted = {};
   let W = 0, H = 0, u = 1, place = null, tray = null;
   let paper = null, paperDirty = true, version = 0;
@@ -125,7 +125,7 @@ export function createPainting(env) {
     say(pick(LINES.easel));
   }
   function close() {
-    active = false; stroke = null; pan = pinch = grow = null;
+    active = false; stroke = null; pan = pinch = grow = clearHold = null;
     env.store.flush();
   }
 
@@ -176,6 +176,8 @@ export function createPainting(env) {
       say(LINES.colors[PAINT[color].name]);
     } else if (TOOLS[k]) {
       tool = k; env.sound.play('tool'); say(LINES.tools[k]);
+    } else if (k === 'clear') {
+      clearHold = { t0: env.now() }; // wiping needs a hold, see update()
     } else if (k === 'grid') {
       grid = !grid; moved(); persist();
       env.sound.play('tool'); say(grid ? LINES.gridOn : LINES.gridOff);
@@ -241,8 +243,19 @@ export function createPainting(env) {
     strokeLine(current, stroke.last, c, tool, color);
     stroke.last = c; paperDirty = true;
   }
+  const CLEAR_HOLD_MS = 900;
+  // Wipes every bit of paint (the paper keeps its size). Nothing undoes this, so it needs a hold.
+  function clearAll() {
+    clearHold = null;
+    if (isBlank(current)) { say(LINES.alreadyClean); return; }
+    current.cells.fill(0);
+    paperDirty = true; version++; lastTap = null; persist();
+    strokes = 0; usedColors = new Set(); manyShown = false;
+    env.sound.play('pop'); say(pick(LINES.cleared));
+  }
   function pointerUp() {
     lastPtr = null;
+    if (clearHold) { clearHold = null; say(LINES.clearHint); return; } // let go too soon
     if (grow) {
       const g = grow;
       grow = null;
@@ -318,6 +331,7 @@ export function createPainting(env) {
     if (k === 'sponge') return sprite('sp' + hex, () => mkSponge(hex));
     if (k === 'cloth') return sprite('cloth', mkCloth);
     if (k === 'grid') return sprite('grid', mkGridIcon);
+    if (k === 'clear') return sprite('clear', mkClear);
     return sprite('hang', mkHang);
   }
 
@@ -332,6 +346,10 @@ export function createPainting(env) {
         const w = img.width * u, h = img.height * u, x = Math.round(it.cx - w / 2), y = it.base - h - (sel ? 3 * u : 0) - bump + off;
         if (sel) { c.fillStyle = 'rgba(255,250,220,.55)'; c.fillRect(x - u, it.base + off - u, w + 2 * u, 2 * u); }
         c.drawImage(img, x, y, w, h);
+        if (it.k === 'clear' && clearHold) { // water rising in the bucket while it is held
+          const fill = clamp((env.now() - clearHold.t0) / CLEAR_HOLD_MS, 0, 1);
+          c.fillStyle = 'rgba(46,124,246,.5)'; c.fillRect(x, y + h - Math.round(h * fill), w, Math.round(h * fill));
+        }
         if (sel) { const f = Math.floor(now / 180) % 4; c.drawImage(SPARK[f === 3 ? 1 : f], x + w - 2 * u, y - 3 * u, 7 * u, 7 * u); }
       }
     }
@@ -345,6 +363,7 @@ export function createPainting(env) {
   const DRIFT_SPEED = 240; // canvas pixels a second when painting at the very edge of a zoomed paper
   function update(dt) {
     refreshTray();
+    if (clearHold && env.now() - clearHold.t0 >= CLEAR_HOLD_MS) clearAll();
     const target = trayOpen ? 1 : 0;
     trayAnim = env.reducedMotion ? target : clamp(trayAnim + (target ? dt * 5 : -dt * 6), 0, 1);
     if (grow && lastPtr) {

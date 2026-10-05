@@ -98,6 +98,9 @@ so) or **proposed** (a default picked, awaiting the user).
   view. No paper controls in the tray (the sheet pad, hand, magnifier and plus
   icons were all confusing, user 2026-10-05). Works with touch and mouse. Old
   paintings need no care: the user is the only user.
+- [proposed] Wiping the whole paper is a tray bucket you hold for about 0.9 s (no
+  confirmation text, no undo). Reason: it cannot be undone, so it must be hard to
+  do by accident. Whether it needs an undo is not decided.
 - [confirmed] A new painting always starts at the default size (the natural grid for
   the screen). The sheet shapes (tall, wide, big, small) were dropped. Reason: they
   changed the default size.

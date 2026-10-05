@@ -24,6 +24,15 @@ export function mkBack(){const p=new Px(20,26);p.r(3,6,14,19,'#c97a3a');p.r(4,4,
   p.r(5,8,4,6,'#e09a58');p.r(11,8,4,6,'#e09a58');p.r(5,16,4,6,'#e09a58');p.r(11,16,4,6,'#e09a58');p.r(13,14,2,2,'#ffd23f');
   p.r(1,24,18,2,'#ff8ac0');p.outline('#5e3014');return p.done()}
 
+// The bucket: hold it to wipe the whole paper clean.
+export function mkClear() {
+  const p = new Px(22, 24);
+  for (let y = 9; y < 22; y++) { const ins = (y - 9) >> 2; p.r(4 + ins, y, 14 - 2 * ins, 1, y % 4 === 0 ? '#5a8fc4' : '#7ab4e6'); }
+  p.r(3, 8, 16, 2, '#c9d2e0'); p.r(5, 10, 12, 2, '#9fe6ff'); p.r(6, 10, 3, 1, '#ffffff');
+  p.ln(4, 8, 8, 2, '#8a7a98'); p.ln(18, 8, 14, 2, '#8a7a98'); p.ln(8, 2, 14, 2, '#8a7a98');
+  p.r(9, 12, 2, 6, '#ffffff'); p.r(9, 12, 1, 6, '#d8f4ff');
+  p.outline('#3d5a80'); return p.done();
+}
 // The grid switch: a sheet with dots in rows.
 export function mkGridIcon() {
   const p = new Px(22, 24); p.r(3, 3, 16, 18, '#fffaf0');

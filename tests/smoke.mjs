@@ -231,6 +231,23 @@ for (const target of targets) {
   await page.waitForTimeout(100);
   assert.ok((await st()).view.cell > c0, 'ctrl-wheel zooms in');
 
+  // the bucket wipes the paper only when held: a tap does nothing, a hold clears all paint and keeps the size
+  const size = (await st());
+  await openTray();
+  let gg = await geo(); const bucket = gg.items.find((i) => i.k === 'clear'); assert.ok(bucket, 'tray has the bucket');
+  const bx = css(gg, bucket.hit.x + bucket.hit.w / 2), by = css(gg, bucket.hit.y + bucket.hit.h / 2);
+  await touch('touchStart', [[bx, by]]); await page.waitForTimeout(120); await touch('touchEnd', []);
+  assert.equal((await st()).painted, size.painted, `${target}: a quick touch on the bucket wipes nothing`);
+  await touch('touchStart', [[bx, by]]); await page.waitForTimeout(1300); await touch('touchEnd', []);
+  const wiped = await st();
+  assert.equal(wiped.painted, 0, `${target}: holding the bucket wipes all paint`);
+  assert.deepEqual([wiped.w, wiped.h], [size.w, size.h], 'the paper keeps its size');
+  await page.waitForTimeout(500);
+  await page.mouse.move(200, 400); await page.mouse.down();
+  for (let i = 0; i < 12; i++) await page.mouse.move(200 + i * 6, 400 + i * 10);
+  await page.mouse.up();
+  assert.ok((await st()).painted > 0, 'painting again after a wipe works');
+
   // hang it: the tall painting hangs rolled up, behind the easel, and survives a reload in IndexedDB with the grid setting
   await openTray(); await tapItem('hang');
   await until(page, () => window.__studio.debug().mode === 'room', 'room after hanging');

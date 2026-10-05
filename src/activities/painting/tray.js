@@ -10,8 +10,8 @@ export const TAB_W = 34;
 export const TAB_H = 13;
 const SLOT = 26; // art pixels one item needs
 // hand: drag the paper around. zoom: step closer. paper: pick another sheet. more: add paper.
-// grid: dots on or off. hang: hang it up.
-export const ACTION_IDS = ['grid', 'hang'];
+// grid: dots on or off. clear: hold to wipe the paper clean. hang: hang it up.
+export const ACTION_IDS = ['grid', 'clear', 'hang'];
 export const ITEM_IDS = [...TOOL_IDS, ...ACTION_IDS, ...PAINT.map((_, i) => 'pot' + i)];
 
 export function layoutTray(W, H, u) {

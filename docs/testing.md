@@ -14,7 +14,7 @@ Playwright; Chromium is in the cloud environment).
    the easel, check the paper fills the screen, paint, use the tray, hang it
    up, leave with Escape, reload and check it survived (from IndexedDB),
    on a phone: no paper controls in the tray, a fresh painting at the default size (also after hanging), grid switch, smooth pinch, two-finger scroll, double tap to the table
-   view, hold a tab to grow the paper and push it in to shrink it, ctrl-wheel, hang it rolled up, flick the room and catch it, long-press a hung
+   view, hold the bucket to wipe the paper (a tap does not), hold a tab to grow the paper and push it in to shrink it, ctrl-wheel, hang it rolled up, flick the room and catch it, long-press a hung
    painting and get a PNG download, play every sound, check the trill is a roll and when it plays (on load or
    first touch), and fail on any console
    error or request to another host. Runs on `index.html` and `dist/index.html`.
