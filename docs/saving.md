@@ -60,12 +60,14 @@ data without both.
 
 **Everything in one file.** On the book's page two small buttons sit in the top-right
 corner (pictures only, like the door): **save everything** (a stack of papers) and **bring
-a file back** (an up arrow). Save everything writes `sadies-studio-backup-YYYY-MM-DD.json`: an ordinary
-version-2 save plus `{ app, kind: 'backup', saved }`, holding every activity (today the easel, the
-line and the book). Code: `src/save/backup.js` (pure), `export.js` (file side). It is always a
-**download**, never the share sheet: phone share sheets refuse JSON, and the user ruled out
-hiding the data in a picture (an app that recompressed it would silently ruin the backup while
-it still looked fine). Bringing a file back **merges**: nothing is replaced or removed; a painting in the file that is not already here
+a file back** (an up arrow). Save everything writes `sadies-studio-backup-YYYY-MM-DD.zip` holding `backup.json`: an ordinary
+version-2 save plus `{ app, kind: 'backup', saved }`, with every activity (today the easel, the
+line and the book). A zip because phone share sheets accept it (they refuse JSON), it is checked on
+the way back in (a damaged one is refused, not trusted), and more files can go in it later. Not a
+picture with hidden data: the user ruled that out, since recompression could ruin the backup
+unseen. Code: `src/save/backup.js` (pure), `zip.js`, `export.js` (file side). On a phone it opens the
+share sheet, elsewhere (or if sharing fails) it downloads. A plain `.json` file from an earlier build
+is still accepted. Bringing a file back **merges**: nothing is replaced or removed; a painting in the file that is not already here
 (same size and paint) is added, one already here is skipped, and a painting changed since the
 backup is a different painting so both stay. Added ones hang on the line while it has room,
 then go to the book. A file that is not ours, or bare paper, adds nothing and Sadie says so.
@@ -74,10 +76,10 @@ activity's saved state, so a new activity rides along without changes; bringing 
 merge written for it next to the painting one (`parseBackup`/`newFromBackup` only merge paintings
 today). Any new saved painting field must also be carried by `parseBackup`.
 
-**Where a picture goes.** On a phone or tablet (coarse pointer and a browser that can share files)
-the system **share sheet** opens, so the parent picks Drive, Files, messages and so on (single-painting PNGs only). Elsewhere
+**Where files go.** On a phone or tablet (coarse pointer and a browser that can share files)
+the system **share sheet** opens, so the parent picks Drive, Files, messages and so on . Elsewhere
 (desktop) it downloads as before; so does anything where sharing is blocked or fails. Inside an
-artifact the host's own `downloads` save is the fallback. The picture saves (below) use the same path.
+artifact the host's own `downloads` save is the fallback. The picture saves (below) and the backup zip use the same path.
 
 Long-press (about 0.65 s) a hung painting in the room (or a card in the book) and
 choose the save button: sparkles, a sound, and the painting is offered (share sheet on a phone, download on desktop) as a PNG (`sadies-painting-N.png`, each cell a whole-number

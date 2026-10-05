@@ -15,7 +15,7 @@ import { stampArt, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE } from './stamps.j
 import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, drawEdgeTab, mkBack, mkChevron, mkDrawerPaints, drawWall, mkDrawerTools, mkDrawerStamps, mkStampThumb, mkStampSize, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture, hangShape } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
-import { savePng, saveJson, pickFile } from './export.js';
+import { savePng, saveBackupZip, pickFile } from './export.js';
 import { buildBackup, backupName, parseBackup, newFromBackup } from '../../save/backup.js';
 import { addFinished, lineToBook, bookToLine, remove, splitLoaded, lineIsFull, takeToEasel } from './collection.js';
 import { layoutBook, clampScroll, cardAt } from './book.js';
@@ -398,7 +398,7 @@ export function createPainting(env) {
   async function backupAll() {
     env.sound.play('hang'); say(LINES.backingUp);
     persist();
-    await saveJson(JSON.stringify(buildBackup({ ...env.store.all().activities, [ID]: save() })), backupName());
+    await saveBackupZip(JSON.stringify(buildBackup({ ...env.store.all().activities, [ID]: save() })), backupName());
   }
   // Merge a file into what is here: nothing is replaced (see save/backup.js).
   async function restore() {

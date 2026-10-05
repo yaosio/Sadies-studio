@@ -3,6 +3,7 @@
 // Runs against the source (index.html) and the single-file build (dist/index.html).
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
+import { makeZip, readZip } from '../src/save/zip.js';
 import { serve } from './helpers/server.mjs';
 import { launch } from './helpers/playwright.mjs';
 
@@ -217,8 +218,8 @@ for (const target of targets) {
   const corner = async (k) => { const sc = await S(), r = await page.evaluate((k) => window.__studio.activity('painting')._book().buttons.find((b) => b.k === k).r, k); return { x: (r.x + r.w / 2) * sc, y: (r.y + r.h / 2) * sc }; };
   let pt = await corner('backup');
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), page.mouse.click(pt.x, pt.y)]);
-  assert.match(dl.suggestedFilename(), /^sadies-studio-backup-\d{4}-\d\d-\d\d\.json$/, `${target}: save everything gives one backup file`);
-  const backup = JSON.parse(readFileSync(await dl.path(), 'utf8'));
+  assert.match(dl.suggestedFilename(), /^sadies-studio-backup-\d{4}-\d\d-\d\d\.zip$/, `${target}: save everything gives one backup zip`);
+  const backup = JSON.parse(readZip(new Uint8Array(readFileSync(await dl.path())))['backup.json']);
   assert.equal(backup.activities.painting.hung.length, 13, 'the backup holds the whole line');
   assert.equal(backup.activities.painting.book.length, 1, 'and the book');
   backup.activities.painting.book.push({ w: 5, h: 3, d: 'B3C4D' }); // one painting this device does not have
@@ -229,7 +230,7 @@ for (const target of targets) {
     if (!chooserEv) console.log(`${target}: load button needed try ${tries + 2}`);
   }
   assert.ok(chooserEv, `${target}: the load button opens the file picker`);
-  await chooserEv.setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
+  await chooserEv.setFiles({ name: 'backup.zip', mimeType: 'application/zip', buffer: Buffer.from(makeZip([{ name: 'backup.json', data: JSON.stringify(backup) }])) });
   for (let i = 0; i < 40 && (await state()).book < 2; i++) await page.waitForTimeout(50);
   st = await state();
   assert.deepEqual([st.hung, st.book], [13, 2], `${target}: importing merges: what was here stays, only the new painting is added`);

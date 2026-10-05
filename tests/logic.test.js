@@ -462,7 +462,7 @@ test('backup: everything in one file, and a file merges into what is here', asyn
   const { buildBackup, backupName, parseBackup, newFromBackup } = await import('../src/save/backup.js');
   const a = { w: 3, h: 2, d: 'B2A4' }, b = { w: 3, h: 2, d: 'C2A4' }, c = { w: 3, h: 2, d: 'D2A4' };
   const file = JSON.stringify(buildBackup({ painting: { current: c, hung: [a], book: [b] }, music: { songs: [1] } }, new Date('2026-10-05T12:00:00Z')));
-  assert.equal(backupName(new Date('2026-10-05T12:00:00Z')), 'sadies-studio-backup-2026-10-05.json');
+  assert.equal(backupName(new Date('2026-10-05T12:00:00Z')), 'sadies-studio-backup-2026-10-05.zip');
   assert.deepEqual(JSON.parse(file).activities.music, { songs: [1] }, 'other activities ride along');
   const got = parseBackup(file);
   assert.deepEqual(got, { current: c, hung: [a], book: [b] });

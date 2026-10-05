@@ -214,9 +214,11 @@ so) or **proposed** (a default picked, awaiting the user).
   first, then book), identical ones are skipped, changed ones stay as separate copies. The
   two buttons live in the book's top-right corner, no hold needed since nothing is lost.
   Backup stays manual (a parent saves a file), not automatic.
-- [confirmed] The backup file is a plain downloaded JSON file, not a share-sheet picture with hidden
-  data: the share sheet refuses JSON, and a recompressed picture could silently lose the data
-  while looking like a good backup (user, 2026-10-05). Easier hand-off to Drive is parked.
+- [confirmed] The backup is not a picture with hidden data: a recompressed picture could silently
+  lose the data while looking like a good backup (user, 2026-10-05).
+- [proposed] The backup is a zip holding `backup.json` (share sheet on phones, download elsewhere),
+  because phone share sheets refused JSON and the user preferred zip (room for more files).
+  Falls back to download if the sheet refuses zip too.
 
 ## Open questions
 
