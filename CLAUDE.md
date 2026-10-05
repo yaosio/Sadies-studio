@@ -80,7 +80,8 @@ The user is not an engineer and cannot know what to ask. Do not wait to be asked
 
 ## Docs rules (keep docs small)
 
-- This file stays under 100 lines. It is a map, not a manual.
+- Aim to keep this file under about 100 lines (a soft cap). The goal is that
+  a session never reads text it does not need. It is a map, not a manual.
 - One topic per file. If a file grows past about two screens, split it.
 - Docs live next to the code they describe once code exists.
 - Record decisions and reasons, not history. Delete superseded text; do not
