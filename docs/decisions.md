@@ -82,7 +82,7 @@ so) or **proposed** (a default picked, awaiting the user).
   human eyes on the result.
 - [proposed] Small PRs; CI runs the tests and screenshots. Reason: easy review
   by the next session.
-- [proposed] The paint grid is sized to the screen it is opened on (about 54
+- [proposed] The default paint grid is sized to the screen it is opened on (about 54
   cells on the short side, 11 values per cell as in the mockup), so the paper
   covers the whole screen in any shape. A painting keeps its own size
   afterwards. Reason: full-screen paper must not leave bars on phones.
@@ -93,6 +93,19 @@ so) or **proposed** (a default picked, awaiting the user).
   under key `sadies-studio`; the mockup's v1 is migrated. See saving.md.
 - [proposed] Objects, pots and tools make small sounds when touched. Nothing
   plays by itself except Sadie's one trill at the start.
+- [confirmed] Paper size and zoom: a paper stack on a bare easel picks the sheet,
+  "more paper" only ever adds (nothing shrinks once painting starts), and zoom
+  is pinch, wheel or a tray magnifier, view only. Reason: simple for a child and
+  can never lose a painting. Old paintings need no care: the user is the only
+  user (told 2026-10-05).
+- [confirmed] A very tall painting hangs and then rolls up where it would reach the
+  floor. Reason: the user's idea. Wide ones just hang shorter.
+- [proposed] Tall and wide sheets are 3:1 (not 2:1: a phone's own screen is
+  about 2.2:1). Paper stops growing at 320 cells a side. Zoom stops at 24 canvas
+  pixels per cell.
+- [proposed] Paintings are stored in IndexedDB (one record per activity), with
+  localStorage as the fallback. Reason: localStorage's roughly 5 MB limit is too
+  small for big paper. The first start copies the old localStorage save over.
 - [proposed] The PNG save uses a normal download link, or the host's own save
   (the artifact `downloads` capability) when running as an artifact, where
   sandboxed pages cannot start downloads.
@@ -111,6 +124,9 @@ so) or **proposed** (a default picked, awaiting the user).
 ## Open questions
 
 
+- Should the browser be asked to keep the data permanently
+  (`navigator.storage.persist()`)? Some browsers show a prompt, which a child
+  must never see, so it is not asked for yet.
 - Which learning activity comes first after painting? (Not known yet;
   focus is painting.)
 - How will the app be distributed later? (For now it runs as a claude.ai

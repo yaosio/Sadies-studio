@@ -5,8 +5,9 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { encodeCells, decodeCells, encodePainting, decodePainting } from '../src/save/codec.js';
 import { migrate, emptySave, CURRENT_VERSION } from '../src/save/migrate.js';
-import { createStore, KEY } from '../src/save/store.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE } from '../src/activities/painting/grid.js';
+import { createStore, openStore, KEY } from '../src/save/store.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, PAPER_IDS, paperGrid, growPainting, growPad, zoomLevels, startCell, clampView, viewAround, MAX_CELL } from '../src/activities/painting/grid.js';
+import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
 import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
 import { layoutTray, ITEM_IDS } from '../src/activities/painting/tray.js';
 import { PAINT } from '../src/art/palette.js';
@@ -90,6 +91,87 @@ test('grid fits the screen with whole-number cells', () => {
   }
   const p = placeGrid(100, 50, 200, 400); // a landscape painting on a portrait screen
   assert.equal(p.cell, 2); assert.equal(p.y, 150);
+});
+
+test('every sheet of paper is a sane size on every screen', () => {
+  for (const [W, H] of [[150, 300], [260, 563], [640, 360], [900, 360], [2000, 1000]]) {
+    for (const id of PAPER_IDS) {
+      const g = paperGrid(id, W, H);
+      assert.ok(g.w >= MIN_SIDE && g.w <= MAX_SIDE && g.h >= MIN_SIDE && g.h <= MAX_SIDE, `${id} on ${W}x${H}: ${g.w}x${g.h}`);
+    }
+  }
+  const tall = paperGrid('tall', 260, 563), wide = paperGrid('wide', 260, 563);
+  assert.ok(tall.h === tall.w * 3 && wide.w === wide.h * 3);
+  assert.ok(paperGrid('big', 640, 360).w > paperGrid('screen', 640, 360).w && paperGrid('small', 640, 360).w < paperGrid('screen', 640, 360).w);
+});
+
+test('more paper keeps the painting where it was and stops at the limit', () => {
+  const p = newPainting(30, 20);
+  stamp(p, 3, 4, 'brushS', 2);
+  const pad = growPad(p), g = growPainting(p, pad);
+  assert.equal(g.w, 30 + 2 * pad); assert.equal(g.h, 20 + 2 * pad);
+  assert.equal(g.cells[(4 + pad) * g.w + 3 + pad], 3, 'same paint in the same place');
+  assert.equal(g.cells.filter(Boolean).length, p.cells.filter(Boolean).length, 'no paint lost or added');
+  assert.equal(growPainting(newPainting(MAX_SIDE - 2, 24), 3), null);
+});
+
+test('zoom: whole-number cells, always covers the screen, never past an edge', () => {
+  for (const [W, H] of [[150, 300], [260, 563], [640, 360], [900, 360]]) {
+    for (const id of PAPER_IDS) {
+      const g = paperGrid(id, W, H), lv = zoomLevels(g.w, g.h, W, H), fit = lv[0];
+      assert.equal(fit, placeGrid(g.w, g.h, W, H).cell, 'first level shows the whole paper');
+      for (const c of lv) assert.ok(Number.isInteger(c) && c % fit === 0 && (c === fit || c <= MAX_CELL));
+      const cell = startCell(g.w, g.h, W, H);
+      assert.ok(lv.includes(cell));
+      const v = clampView({ cell, ox: -9999, oy: 9999 }, g.w, g.h, W, H);
+      for (const [o, size, screen] of [[v.ox, g.w * cell, W], [v.oy, g.h * cell, H]]) {
+        if (size > screen) assert.ok(o <= 0 && o + size >= screen, 'scrolled no further than the paper');
+        else assert.equal(o, Math.floor((screen - size) / 2), 'a small paper stays centered');
+      }
+      if (id !== 'small' && id !== 'screen') continue;
+      assert.ok(W - g.w * cell < cell * 2 + 1 || g.w * cell >= W, 'screen-shaped paper opens covering the screen');
+    }
+  }
+  const v = viewAround(12, 10.5, 20.5, 100, 200, 54, 162, 260, 563); // keep paper point (10.5, 20.5) under (100, 200)
+  assert.equal(Math.floor((100 - v.ox) / v.cell), 10); assert.equal(Math.floor((200 - v.oy) / v.cell), 20);
+});
+
+test('hung paintings: wide ones are shorter, tall ones drop and roll up past the limit', () => {
+  const art = (w, h) => ({ w, h, cells: new Uint8Array(w * h) });
+  assert.deepEqual(hangShape(null), { ph: 27, rolled: false, full: 27 });
+  assert.equal(hangShape(art(72, 54)).ph, 27);
+  assert.ok(hangShape(art(162, 54)).ph < 27 && hangShape(art(162, 54)).ph >= 9);
+  const mid = hangShape(art(54, 117)); // a phone-shaped sheet hangs in full
+  assert.ok(!mid.rolled && mid.ph > 27);
+  const long = hangShape(art(54, 162));
+  assert.ok(long.rolled && long.full > long.ph);
+  const a = slotRect(0, { x: 0, y: 0 }, art(54, 162)), b = slotRect(0, { x: 0, y: 0 }, art(72, 54));
+  assert.ok(a.h > b.h && a.x === b.x && a.y === b.y && a.w === b.w, 'taller frame, same peg place');
+});
+
+// a stand-in for IndexedDB: records by id, and what was written
+function fakeBackend(records = [], fail = false) {
+  const written = {};
+  return { written, readAll: async () => { if (fail) throw new Error('blocked'); return records; }, put: (id, state) => { written[id] = state; } };
+}
+test('IndexedDB store: starts from what it holds, writes per activity, moves old saves over once', async () => {
+  const held = fakeBackend([{ id: 'painting', version: CURRENT_VERSION, state: { a: 1 } }, { id: 'old', version: 1, state: {} }]);
+  const s = await openStore(held, memory(), 10000);
+  assert.deepEqual(s.get('painting'), { a: 1 }); assert.equal(s.get('old'), undefined, 'records of another version are ignored');
+  s.set('painting', { a: 2 }); s.flush();
+  assert.deepEqual(held.written, { painting: { a: 2 } });
+  // empty database: whatever localStorage held (even the mockup's v1) moves over
+  const fresh = fakeBackend(), local = memory({ 'sadies-studio-v1': JSON.stringify(fixture('save-v1.json')) });
+  const moved = await openStore(fresh, local, 10000);
+  assert.equal(moved.get('painting').hung.length, 2);
+  moved.flush();
+  assert.equal(fresh.written.painting.hung.length, 2, 'copied into the database on first start');
+  // no database, or one that throws: localStorage still works
+  for (const none of [null, fakeBackend([], true)]) {
+    const mem = memory(), f = await openStore(none, mem, 10000);
+    f.set('painting', { b: 1 }); f.flush();
+    assert.deepEqual(JSON.parse(mem.getItem(KEY)).activities.painting, { b: 1 });
+  }
 });
 
 test('thumbnails keep thin lines and letterbox', () => {

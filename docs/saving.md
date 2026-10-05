@@ -1,7 +1,8 @@
 # Saving
 
-Everything the child makes stays on the device, in the browser's local storage.
-No accounts, no server. Code: `src/save/`.
+Everything the child makes stays on the device, in the browser's IndexedDB
+(localStorage if IndexedDB is missing or blocked). No accounts, no server. Code:
+`src/save/`.
 
 ## Rule
 
@@ -12,8 +13,11 @@ data without both.
 
 ## Format (version 2)
 
-- Key `sadies-studio`: `{ version: 2, activities: { painting: { current, hung } } }`.
+- Logically `{ version: 2, activities: { painting: { current, hung } } }`.
   Each activity owns its own entry (`store.get(id)` / `store.set(id, state)`).
+  In IndexedDB (database `sadies-studio`, store `activities`) each activity is one
+  record `{ id, version, state }`; in localStorage the whole object is one key,
+  `sadies-studio`.
 - A painting is `{ w, h, d }`: width, height, and `d`, one letter per cell, `A`
   (bare paper) to `K` (paint 10), with a run count after repeated letters
   (`A12B` is twelve A then one B). See `src/save/codec.js`.
@@ -26,8 +30,15 @@ data without both.
 
 ## Behavior
 
+- The app starts after the storage is read (`openStore` in `src/save/store.js`).
+  First start with an empty database copies whatever localStorage held (including
+  the mockup's v1) into IndexedDB; after that localStorage is not read again.
+- IndexedDB holds far more than localStorage's roughly 5 MB, which matters for
+  big paper. Painting size is limited by the codec (512 a side) and the paper
+  limit in `grid.js` (320).
 - Writes are debounced about 500 ms after a stroke, and flushed when the page
-  is hidden or closed.
+  is hidden or closed. An IndexedDB write begun while the page closes normally
+  finishes, but is not guaranteed to.
 - Every read and write is guarded. Missing, full, blocked or corrupt storage
   means a fresh start and an app that still runs, never a crash.
 - With no save at all, two example paintings hang on the clothesline.
@@ -35,6 +46,8 @@ data without both.
 ## Not built yet
 
 - Backup or restore across devices.
+- One record per painting (today one per activity). Not needed yet.
+- Asking the browser to keep the data permanently (`navigator.storage.persist()`).
 
 ## Saving out
 

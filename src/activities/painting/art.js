@@ -24,6 +24,37 @@ export function mkBack(){const p=new Px(20,26);p.r(3,6,14,19,'#c97a3a');p.r(4,4,
   p.r(5,8,4,6,'#e09a58');p.r(11,8,4,6,'#e09a58');p.r(5,16,4,6,'#e09a58');p.r(11,16,4,6,'#e09a58');p.r(13,14,2,2,'#ffd23f');
   p.r(1,24,18,2,'#ff8ac0');p.outline('#5e3014');return p.done()}
 
+// A sheet of paper on the tray, drawn in the proportions of the sheet it stands
+// for: 'screen' | 'big' | 'tall' | 'wide' | 'small'. Bigger sheets sit in a taller stack.
+const SHEET = { screen: [12, 16, 2], big: [16, 20, 3], tall: [8, 20, 2], wide: [20, 10, 2], small: [10, 12, 1] };
+export function mkPaper(id) {
+  const [w, h, stack] = SHEET[id] || SHEET.screen, p = new Px(22, 24), x0 = (22 - w) >> 1, y0 = 22 - h;
+  for (let k = stack; k >= 0; k--) { p.r(x0 + k, y0 - k, w, h, k ? '#e6dccb' : '#fffaf0'); if (k) p.r(x0 + k, y0 - k, w, 1, '#cfc3b2'); }
+  p.d(x0 + 1, y0 + 1, w - 2, h - 2, '#f0e6d2', 0.18);
+  p.r(x0 + 2, y0 + 3, Math.max(3, w >> 1), 1, '#c9b8ff'); p.r(x0 + 2, y0 + 5, Math.max(2, w >> 2), 1, '#ffb0c8');
+  p.outline('#6e5a48'); return p.done();
+}
+// "More paper": a sheet with a plus on it.
+export function mkMore() {
+  const p = new Px(22, 24); p.r(3, 5, 14, 17, '#e6dccb'); p.r(5, 3, 14, 17, '#fffaf0'); p.r(5, 3, 14, 1, '#cfc3b2');
+  p.r(11, 7, 2, 9, '#3cc24a'); p.r(8, 10, 8, 3, '#3cc24a'); p.r(11, 8, 2, 7, '#7ee08a'); p.r(9, 11, 6, 1, '#7ee08a');
+  p.outline('#6e5a48'); return p.done();
+}
+// The magnifying glass for zooming.
+export function mkZoom() {
+  const p = new Px(22, 24); p.disc(9, 9, 7, '#6e5a48'); p.disc(9, 9, 5, '#d8f0ff'); p.r(6, 5, 3, 2, '#ffffff'); p.r(5, 7, 2, 2, '#ffffff');
+  p.ln(14, 14, 20, 21, '#6e5a48', 3); p.ln(14, 14, 19, 20, '#e8b070', 1);
+  p.outline('#4b3050'); return p.done();
+}
+// The hand that drags the paper around (a mitten).
+export function mkHand() {
+  const p = new Px(22, 24), skin = '#f0b878', sh = '#d48e4c';
+  p.r(5, 12, 13, 10, skin); p.r(5, 12, 13, 1, '#ffd8a0');
+  [[5, 4], [8, 2], [11, 3], [14, 5]].forEach(([x, y]) => { p.r(x, y, 3, 11, skin); p.r(x, y, 1, 11, '#ffd8a0'); });
+  p.r(2, 12, 4, 3, skin); p.r(2, 12, 2, 3, '#ffd8a0'); p.r(5, 19, 13, 3, sh); p.r(7, 17, 9, 1, sh);
+  p.outline('#6e3e1e'); return p.done();
+}
+
 const CHEV = ['.....', '..o..', '.oyo.', 'oyyyo', 'ooooo'];
 // Small arrow for the tray handle: up when the tray is closed, down when open.
 export function mkChevron(up) {

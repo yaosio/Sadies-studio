@@ -129,6 +129,93 @@ for (const target of targets) {
   await ctx.close();
   console.log(`ok  ${target}`);
 }
+// Paper sizes, more paper, zoom and scroll, and a tall painting hanging rolled up, on a phone.
+for (const target of targets) {
+  const errors = [];
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !m.text().includes('willReadFrequently') && !m.text().includes('AudioContext was not allowed')) errors.push(m.text()); });
+  const cdp = await ctx.newCDPSession(page);
+  await page.goto(`${url}/${target}?test`);
+  await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room');
+  await page.evaluate(() => window.__studio.enter('painting'));
+  await until(page, () => window.__studio.debug().mode === 'painting', 'painting mode');
+  await page.waitForTimeout(1200);
+  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { paper: s.paperId, w: s.current.w, h: s.current.h, view: s.view, tool: s.tool, painted: s.current.cells.filter(Boolean).length, hung: s.hung.length }; });
+  const g = await page.evaluate(() => { const t = window.__studio.activity('painting')._tray(), d = window.__studio.debug(); return { S: d.S, tab: t.tab, H: d.H, items: t.items.map((i) => ({ k: i.k, hit: i.hit })) }; });
+  const css = (v) => (v * g.S) / 2;
+  const openTray = async () => { await page.touchscreen.tap(css(g.tab.x + g.tab.w / 2), css(g.H - g.tab.h / 2)); await page.waitForTimeout(500); };
+  const tapItem = async (k) => { const it = g.items.find((i) => i.k === k); await page.touchscreen.tap(css(it.hit.x + it.hit.w / 2), css(it.hit.y + it.hit.h / 2)); await page.waitForTimeout(200); };
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p[0], y: p[1], id: i })) });
+
+  // pick the tall sheet from the paper stack (a bare easel only)
+  await openTray(); await tapItem('paper'); await tapItem('paper');
+  let s = await st();
+  assert.equal(s.paper, 'tall'); assert.equal(s.h, s.w * 3, `${target}: tall sheet is three times as long as wide`);
+  const fitCell = s.view.cell;
+  // paint, then the paper stack refuses (it has paint on it)
+  await page.mouse.move(100, 200); await page.mouse.down();
+  for (let i = 0; i < 20; i++) await page.mouse.move(100 + i * 8, 200 + i * 12);
+  await page.mouse.up();
+  const painted = (await st()).painted;
+  assert.ok(painted > 0);
+  await openTray(); await tapItem('paper');
+  assert.equal((await st()).paper, 'tall', 'a painted sheet is not swapped');
+
+  // pinch out: closer, and the stroke is not touched by the fingers
+  await touch('touchStart', [[170, 400], [220, 400]]);
+  for (let i = 1; i <= 10; i++) await touch('touchMove', [[170 - i * 6, 400], [220 + i * 6, 400]]);
+  await touch('touchEnd', []);
+  s = await st();
+  assert.ok(s.view.cell > fitCell && s.view.cell % fitCell === 0, `${target}: pinch zooms in by whole steps (${fitCell} -> ${s.view.cell})`);
+  assert.equal(s.painted, painted, 'a pinch paints nothing');
+  // two fingers drag the paper
+  const y0 = s.view.oy;
+  await touch('touchStart', [[150, 600], [230, 600]]);
+  for (let i = 1; i <= 10; i++) await touch('touchMove', [[150, 600 - i * 20], [230, 600 - i * 20]]);
+  await touch('touchEnd', []);
+  s = await st();
+  assert.ok(s.view.oy < y0, 'two fingers scroll the paper');
+  assert.equal(s.painted, painted);
+  // the hand tool drags the paper with one finger
+  await openTray(); await tapItem('hand');
+  const y1 = s.view.oy;
+  await touch('touchStart', [[190, 300]]);
+  for (let i = 1; i <= 8; i++) await touch('touchMove', [[190, 300 + i * 20]]);
+  await touch('touchEnd', []);
+  s = await st();
+  assert.ok(s.view.oy > y1 && s.painted === painted, 'the hand moves the paper and paints nothing');
+  // more paper: bigger, same paint
+  await openTray(); await tapItem('pot4'); await tapItem('more');
+  const bigger = await st();
+  assert.ok(bigger.w > s.w && bigger.h > s.h && bigger.painted === painted, `${target}: more paper adds paper and keeps the paint`);
+  // zoom tray button cycles back around to the whole paper
+  for (let i = 0; i < 6; i++) { await openTray(); await tapItem('zoom'); }
+  // mouse wheel: ctrl-wheel zooms, plain wheel scrolls
+  const z0 = (await st()).view;
+  await page.mouse.move(200, 300);
+  await page.mouse.wheel(0, 120);
+  const z1 = (await st()).view;
+  assert.ok(z1.oy !== z0.oy || z1.ox !== z0.ox || z0.cell === z1.cell, 'the wheel is handled');
+
+  // hang it: the tall painting hangs rolled up and survives a reload in IndexedDB
+  await openTray(); await tapItem('hang');
+  await until(page, () => window.__studio.debug().mode === 'room', 'room after hanging');
+  const hung = await page.evaluate(() => { const a = window.__studio.activity('painting'), d = window.__studio.debug(), i = a._state().hung.length - 1; return { i, rect: a.room.slotRect(i, d.anchors.clothesline) }; });
+  assert.ok(hung.rect.h > 60, `${target}: a tall painting hangs taller than the standard frame (${hung.rect.h})`);
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await page.waitForTimeout(300);
+  const dbs = await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name));
+  assert.ok(dbs.includes('sadies-studio'), `${target}: paintings are kept in IndexedDB`);
+  await page.reload();
+  await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room after reload');
+  const back = await st();
+  assert.equal(back.hung, 3, 'the tall painting survived the reload');
+  assert.deepEqual(errors, [], `${target}: no console errors`);
+  await ctx.close();
+  console.log(`ok  ${target} paper sizes and zoom`);
+}
 // Sadie's trill: it is a roll (about 28 pulses a second) that rises, not a coin chime.
 {
   const page = await browser.newPage();
