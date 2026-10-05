@@ -9,9 +9,7 @@ Raise the relevant ones before building. Log each answer in
 
 - No accounts, no network calls, no analytics, no ads, no external links,
   nothing leaves the device. (default; also CLAUDE.md rule 10)
-- No third-party scripts or fonts at runtime if avoidable. The mockup loads
-  Pixelify Sans from Google Fonts, which contacts a third party. (? self-host
-  the font, or accept it)
+- Fonts are hosted in the app, no third-party requests. (done)
 - Paintings are the child's data. Who else uses the device, and should
   paintings be private to the app? (?)
 
@@ -20,59 +18,58 @@ Raise the relevant ones before building. Log each answer in
 - Honor reduced motion (mockup does). (default)
 - Never rely on reading, color alone, or hover. Targets large enough for small
   hands. (default)
-- Is the child's color vision or motor control a factor? (?)
+- No special vision or motor needs known. (done)
 - Screen reader support for a canvas app is limited; what is expected? (?)
 
 ## Offline and installability
 
-- Works offline after first load (service worker) and can be added to a home
-  screen. (default; ? is home-screen install wanted)
-- Where will it be hosted, and how does the child's device get updates? (?)
+- Works offline after first load and can be added to a home screen. (default)
+- For now it runs as a claude.ai artifact, so keep it self-contained.
+  How it is distributed later is open. (?)
 
 ## Performance
 
 - Target cheap phones and old tablets: integer-scaled canvas, redraw only what
   changed, no per-frame allocation. (default)
-- Which devices does the child actually use? (?)
+- Exact devices unknown; assume cheap phones and tablets. (default)
 
 ## Audio
 
-- Sound effects, music, Sadie's voice: none yet. Decide before building.
-  Browsers block audio until a tap. Volume and a mute that a child can find.
-  (?)
+- Sounds are synthesized in code. One happy Sadie sound at start, sounds when
+  touched, never random. (done)
+- Browsers block audio until a tap, so the start sound plays on the first tap.
+  A mute a child can find. (default)
 
 ## Saved data
 
 - Storage is browser local storage; it can be cleared by the browser or lost
   with the device. Size limits apply. (default: versioned, see saving.md)
-- Backup and export: should the parent be able to save paintings out (image
-  file, print) or move them to another device? (?)
-- Is there any parent-only area, and if so how is it kept out of a child's
-  reach? (?)
+- Any user can save a painting out as an image file. (done)
+- No parent-only area for now. (done)
 
 ## Browsers and devices
 
-- Which browsers and devices must work? Proposed: current Safari on iPhone and
-  iPad, Chrome on Android, desktop Chrome, Firefox, Edge. (? confirm)
+- Most popular browsers: Safari on iPhone and iPad, Chrome on Android, desktop
+  Chrome, Firefox, Edge. (done)
 - Touch, mouse and stylus via pointer events. Pinch or double-tap zoom must not
   hijack the canvas. (default)
 
 ## Art assets
 
-- How Sadie's art is made and stored: drawn in code (mockup) versus image
-  files made by an artist or tool. (?) Affects tooling, tests and file size.
-- Sadie's design source: the user's photo of the cat. Should a source image be
-  kept in the repo? (?)
-- Naming convention and one palette file once art exists. (default)
+- All art is drawn in code, no image files. (done)
+- Sadie's design source is a photo of the cat the user shared; not kept in the
+  repo. (default)
+- One palette file. (default)
 
 ## Learning content (later)
 
-- Who defines what the child learns and at what level? Progress tracking, or
-  none? (?)
-- Content that is language-specific: which language(s)? (?)
+- Progress is tracked and saved per activity; painting is saved. (done)
+- English. The child is just starting to read: short, simple words, never
+  required. (done)
+- Who defines what the child learns and at what level? (?)
 
 ## Quality and operations
 
 - Tests, screenshot checks and smoke test: see testing.md. (default)
 - Error handling: a child must never see a crash or technical message. (default)
-- Licensing for fonts, art and any library used. (default: record in decisions)
+- Licensing for fonts and any library used. (default: record in decisions)

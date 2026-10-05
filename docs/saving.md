@@ -28,3 +28,8 @@ old data without a migration and a test.
 - Every storage read or write is guarded; a corrupt or missing save falls back
   to a fresh start, never a crash.
 - Tests load a saved fixture from every past version.
+
+## Decided
+
+- Progress is saved per activity; each activity owns its saved state.
+- Any user can save a painting out as an image file. Not built yet.
