@@ -59,6 +59,7 @@ tabs on the paper.
   under the finger. A second finger that lands while a stroke is already under way
   is ignored (a resting palm); a one-dab stroke is taken back when it turns out to
   be a pinch.
+- While a tab is held, new paper is tinted yellow and tick marks every 10 cells run along the pulled edges (the only scale cue; there is no grid).
 - Sadie explains pinch/double tap and the tabs the first time each is used.
 - Code: view math in `grid.js` (`zoomRange`, `startCell`, `clampView`, `edgeTabs`,
   `growSides`), gestures and tabs in `index.js`, touch routing in `src/world/world.js`.

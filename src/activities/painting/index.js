@@ -403,12 +403,33 @@ export function createPainting(env) {
     }
     if (!stroke && !pinch && !anim && !hinted.tabs && tabsOn().length) hint('tabs', LINES.tabs);
   }
+  // While a tab is held: new paper is tinted and a ruler of ticks (every 10 cells) runs along
+  // the pulled axis, so growing and shrinking are easy to see on blank paper.
+  function drawPullCues(c) {
+    const k = place.cell, n = grow.n, side = grow.side, horiz = side === 'left' || side === 'right';
+    if (n > 0) {
+      c.fillStyle = 'rgba(255,214,10,.28)';
+      const len = n * k;
+      if (side === 'right') c.fillRect(place.x + place.w - len, place.y, len, place.h);
+      else if (side === 'left') c.fillRect(place.x, place.y, len, place.h);
+      else if (side === 'bottom') c.fillRect(place.x, place.y + place.h - len, place.w, len);
+      else c.fillRect(place.x, place.y, place.w, len);
+    }
+    c.fillStyle = 'rgba(75,58,94,.55)';
+    const t = Math.max(1, Math.round(u / 2)), size = 4 * u, total = horiz ? current.w : current.h;
+    for (let i = 10; i < total; i += 10) {
+      const p = (horiz ? place.x : place.y) + i * k;
+      if (horiz) { c.fillRect(Math.round(p), Math.round(place.y), t, size); c.fillRect(Math.round(p), Math.round(place.y + place.h - size), t, size); }
+      else { c.fillRect(Math.round(place.x), Math.round(p), size, t); c.fillRect(Math.round(place.x + place.w - size), Math.round(p), size, t); }
+    }
+  }
   function draw(c, now) {
     const k = place.cell, covers = place.x <= k && place.y <= k && place.x + place.w >= W - k && place.y + place.h >= H - k; // within a cell counts: plain paper fills the rest
     c.fillStyle = covers ? PAPER : WOOD_TRIM; // the bare table shows when the paper is smaller than the screen
     c.fillRect(0, 0, W, H);
     if (!covers) { c.fillStyle = SHADOW; c.fillRect(place.x + 2 * u, place.y + 2 * u, place.w, place.h); }
     c.drawImage(paperCanvas(), place.x, place.y, place.w, place.h);
+    if (grow) drawPullCues(c);
     for (const t of tabsOn()) drawEdgeTab(c, Math.round(t.x), Math.round(t.y), Math.round(t.w), Math.round(t.h), u, sprite('arrow' + t.side, () => mkArrow({ top: 'up', bottom: 'down', left: 'left', right: 'right' }[t.side])));
     drawTray(c, now);
   }
