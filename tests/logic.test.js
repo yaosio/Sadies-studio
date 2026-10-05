@@ -6,7 +6,7 @@ import { join, relative } from 'node:path';
 import { encodeCells, decodeCells, encodePainting, decodePainting } from '../src/save/codec.js';
 import { migrate, emptySave, CURRENT_VERSION } from '../src/save/migrate.js';
 import { createStore, openStore, KEY } from '../src/save/store.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, PAPER_IDS, paperGrid, growPainting, growPad, zoomLevels, startCell, clampView, viewAround, MAX_CELL } from '../src/activities/painting/grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, PAPER_IDS, paperGrid, growSides, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, MAX_CELL } from '../src/activities/painting/grid.js';
 import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
 import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
 import { layoutTray, ITEM_IDS } from '../src/activities/painting/tray.js';
@@ -108,32 +108,46 @@ test('every sheet of paper is a sane size on every screen', () => {
 test('more paper keeps the painting where it was and stops at the limit', () => {
   const p = newPainting(30, 20);
   stamp(p, 3, 4, 'brushS', 2);
-  const pad = growPad(p), g = growPainting(p, pad);
-  assert.equal(g.w, 30 + 2 * pad); assert.equal(g.h, 20 + 2 * pad);
-  assert.equal(g.cells[(4 + pad) * g.w + 3 + pad], 3, 'same paint in the same place');
-  assert.equal(g.cells.filter(Boolean).length, p.cells.filter(Boolean).length, 'no paint lost or added');
-  assert.equal(growPainting(newPainting(MAX_SIDE - 2, 24), 3), null);
+  const g = growSides(p, 5, 2, 0, 7);
+  assert.deepEqual([g.l, g.t, g.r, g.b], [5, 2, 0, 7]);
+  assert.equal(g.p.w, 35); assert.equal(g.p.h, 29);
+  assert.equal(g.p.cells[(4 + 2) * g.p.w + 3 + 5], 3, 'same paint in the same place');
+  assert.equal(g.p.cells.filter(Boolean).length, p.cells.filter(Boolean).length, 'no paint lost or added');
+  const capped = growSides(newPainting(MAX_SIDE - 2, 24), 3, 0, 3, 0);
+  assert.equal(capped.p.w, MAX_SIDE, 'stops at the limit');
 });
 
-test('zoom: whole-number cells, always covers the screen, never past an edge', () => {
+test('zoom is smooth, keeps the paper in reach, and the table view leaves room for the tabs', () => {
   for (const [W, H] of [[150, 300], [260, 563], [640, 360], [900, 360]]) {
     for (const id of PAPER_IDS) {
-      const g = paperGrid(id, W, H), lv = zoomLevels(g.w, g.h, W, H), fit = lv[0];
-      assert.equal(fit, placeGrid(g.w, g.h, W, H).cell, 'first level shows the whole paper');
-      for (const c of lv) assert.ok(Number.isInteger(c) && c % fit === 0 && (c === fit || c <= MAX_CELL));
-      const cell = startCell(g.w, g.h, W, H);
-      assert.ok(lv.includes(cell));
-      const v = clampView({ cell, ox: -9999, oy: 9999 }, g.w, g.h, W, H);
-      for (const [o, size, screen] of [[v.ox, g.w * cell, W], [v.oy, g.h * cell, H]]) {
-        if (size > screen) assert.ok(o <= 0 && o + size >= screen, 'scrolled no further than the paper');
-        else assert.equal(o, Math.floor((screen - size) / 2), 'a small paper stays centered');
+      const g = paperGrid(id, W, H), m = 24, r = zoomRange(g.w, g.h, W, H, m);
+      assert.ok(r.min > 0 && r.min <= r.max && r.max >= MAX_CELL);
+      const start = startCell(g.w, g.h, W, H);
+      assert.ok(Number.isInteger(start) && start >= r.min && start <= r.max, 'opens at a whole-number cell inside the range');
+      // the table view fits the paper with the margin all round
+      const tv = clampView({ cell: r.min, ox: 0, oy: 0 }, g.w, g.h, W, H);
+      if (r.min < start) assert.ok(tv.ox >= m - 1 && tv.oy >= m - 1 && tv.ox + g.w * r.min <= W - m + 1 && tv.oy + g.h * r.min <= H - m + 1, `${id} on ${W}x${H}: table view has room`);
+      // never scrolled past an edge
+      for (const cell of [r.min, (r.min + r.max) / 2, r.max]) {
+        const v = clampView({ cell, ox: -9999, oy: 9999 }, g.w, g.h, W, H);
+        for (const [o, size, screen] of [[v.ox, g.w * cell, W], [v.oy, g.h * cell, H]]) {
+          if (size > screen) assert.ok(o <= 0 && o + size >= screen - 1, 'scrolled no further than the paper');
+          else assert.ok(Math.abs(o - (screen - size) / 2) <= 1, 'a small paper stays centered');
+        }
       }
-      if (id !== 'small' && id !== 'screen') continue;
-      assert.ok(W - g.w * cell < cell * 2 + 1 || g.w * cell >= W, 'screen-shaped paper opens covering the screen');
     }
   }
-  const v = viewAround(12, 10.5, 20.5, 100, 200, 54, 162, 260, 563); // keep paper point (10.5, 20.5) under (100, 200)
-  assert.equal(Math.floor((100 - v.ox) / v.cell), 10); assert.equal(Math.floor((200 - v.oy) / v.cell), 20);
+  const v = viewAround(11.5, 10.5, 20.5, 100, 200, 54, 162, 260, 563); // keep paper point (10.5, 20.5) under (100, 200)
+  assert.ok(Math.abs(v.ox + 10.5 * v.cell - 100) <= 1 && Math.abs(v.oy + 20.5 * v.cell - 200) <= 1);
+  assert.ok(fitCell(100, 50, 200, 200) === 2 && fitCell(100, 50, 200, 200, 20) === 1.6);
+});
+
+test('pull-out tabs show only while the whole paper is on screen, one per edge', () => {
+  const inside = edgeTabs({ x: 30, y: 40, w: 100, h: 160 }, 160, 240, 1);
+  assert.deepEqual(inside.map((t) => t.side).sort(), ['bottom', 'left', 'right', 'top']);
+  for (const t of inside) assert.ok(t.hit.w >= t.w && t.hit.h >= t.h, 'finger-sized hit box');
+  assert.equal(edgeTabs({ x: 0, y: 0, w: 300, h: 500 }, 160, 240, 1).length, 0);
+  assert.equal(edgeTabs({ x: 0, y: 0, w: 300, h: 500 }, 160, 240, 1, true).length, 4);
 });
 
 test('hung paintings: wide ones are shorter, tall ones drop and roll up past the limit', () => {
@@ -190,6 +204,10 @@ test('tray fits the screen at every shape', () => {
     assert.equal(t.items.length, ITEM_IDS.length);
     assert.ok(t.panelH <= H * 0.3, `tray stays a small part of ${W}x${H}`);
     for (const it of t.items) assert.ok(it.hit.x >= 0 && it.hit.x + it.hit.w <= W, 'item inside the screen');
+    const bare = layoutTray(W, H, u, { paper: true, picker: true }), painted = layoutTray(W, H, u, { paper: false });
+    assert.ok(bare.items.filter((i) => i.k.startsWith('sheet:')).length === 5 && bare.items.some((i) => i.k === 'paper'), 'sheet shelf on a bare easel');
+    assert.ok(!painted.items.some((i) => i.k === 'paper'), 'no paper pad once painted');
+    for (const it of bare.items) assert.ok(it.hit.x >= 0 && it.hit.x + it.hit.w <= W && it.hit.y >= H - bare.panelH - 2, 'picker items inside the tray');
   }
 });
 

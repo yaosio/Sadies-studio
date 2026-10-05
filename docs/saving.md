@@ -22,7 +22,8 @@ data without both.
   (bare paper) to `K` (paint 10), with a run count after repeated letters
   (`A12B` is twelve A then one B). See `src/save/codec.js`.
 - `current` is the painting on the easel; `hung` the clothesline, oldest first,
-  at most 13.
+  at most 13; `grid` is whether the grid dots are on (missing means off; no
+  migration needed because the field is optional).
 - Palette order is saved data: paint value N means entry N of `PAINT` in
   `src/art/palette.js`. Never reorder or insert.
 - Version 1 was the mockup (`{ p, c }`, 72 x 54, key `sadies-studio-v1`). It is

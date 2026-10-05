@@ -11,7 +11,8 @@ pixels.
 
 ## Hard rules
 
-- **Never smooth pixel art.** Integer scale factors only. Canvas uses
+- **Never smooth pixel art.** Integer scale factors only (one exception: the
+  painting paper zooms smoothly, see [painting.md](painting.md)). Canvas uses
   `imageSmoothingEnabled = false`; CSS uses `image-rendering: pixelated`.
 - **Dither, don't gradient.** Fake gradients with the Bayer pattern.
 - **Dark outlines** in a deep purple ink (mockup uses `#4b3a5e`), not black.

@@ -93,16 +93,26 @@ so) or **proposed** (a default picked, awaiting the user).
   under key `sadies-studio`; the mockup's v1 is migrated. See saving.md.
 - [proposed] Objects, pots and tools make small sounds when touched. Nothing
   plays by itself except Sadie's one trill at the start.
-- [confirmed] Paper size and zoom: a paper stack on a bare easel picks the sheet,
-  "more paper" only ever adds (nothing shrinks once painting starts), and zoom
-  is pinch, wheel or a tray magnifier, view only. Reason: simple for a child and
-  can never lose a painting. Old paintings need no care: the user is the only
-  user (told 2026-10-05).
+- [confirmed] Paper size and zoom: a paper pad on a bare easel opens a shelf of
+  sheet pictures, paper only ever grows (nothing shrinks once painting starts),
+  zoom is pinch, double tap, wheel or keys (view only, no tray icons for it), and
+  more paper is pulled out by tabs on the paper's edges in the whole-paper view.
+  Reason: the first version's tray icons (hand, magnifier, plus) were confusing
+  (user, 2026-10-05). Works with touch and mouse. Old paintings need no care: the
+  user is the only user.
+- [confirmed] Zoom and scroll are smooth, not snapped to whole cells (the paper
+  only). Reason: the user's choice. Relaxes the whole-number rule for this one case.
+- [confirmed] Grid dots: off by default, switchable, saved; shown brightly while
+  the view moves and then back to normal. The old faint speckle on bare paper is
+  gone. Reason: zooming was hard to see.
+- [confirmed] Hung paintings are on the wall, behind everything; only the easel
+  paper and Sadie are in front. Reason: a tall one hung over the easel.
 - [confirmed] A very tall painting hangs and then rolls up where it would reach the
   floor. Reason: the user's idea. Wide ones just hang shorter.
 - [proposed] Tall and wide sheets are 3:1 (not 2:1: a phone's own screen is
-  about 2.2:1). Paper stops growing at 320 cells a side. Zoom stops at 24 canvas
-  pixels per cell.
+  about 2.2:1). Paper stops growing at 320 cells a side. Zoom stops at 32 canvas
+  pixels per cell. A double tap within 28 art pixels and about a third of a second
+  zooms instead of dabbing twice.
 - [proposed] Paintings are stored in IndexedDB (one record per activity), with
   localStorage as the fallback. Reason: localStorage's roughly 5 MB limit is too
   small for big paper. The first start copies the old localStorage save over.

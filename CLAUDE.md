@@ -58,8 +58,8 @@ Each room and activity folder has its own short README (`src/rooms/studio/`,
    dialogs that look like office software.
 3. Nothing babyish. No primary-color blob shapes, no baby-talk. Sadie is dry,
    a little grumpy and kind.
-4. Pixel art is never smoothed. Integer scaling only, crisp edges, dithering
-   instead of gradients. See [docs/art-style.md](docs/art-style.md).
+4. Pixel art is never smoothed. Integer scaling only (except the painting
+   paper's smooth zoom), crisp edges, dithering instead of gradients. See [docs/art-style.md](docs/art-style.md).
 5. An activity never shrinks to a thumbnail. Painting takes the ENTIRE screen
    with the least possible UI on top (tools small, tucked at an edge, never
    shrinking the canvas). Never frame an activity in chunky chrome.

@@ -2,15 +2,15 @@
 // edge, a door in the top-left corner to leave, and a small tab at the bottom
 // that opens the tool tray. In the room it supplies the paper on the easel and
 // the clothesline. See README.md in this folder.
-import { Px, bay, clamp, K } from '../../art/px.js';
-import { PAPER, PAPER_SPECK, PAINT } from '../../art/palette.js';
+import { Px, clamp, K } from '../../art/px.js';
+import { PAPER, PAINT, WOOD_TRIM, SHADOW } from '../../art/palette.js';
 import { encodePainting, decodePainting } from '../../save/codec.js';
 import { pick, easeOut } from '../../engine/util.js';
 import { TOOLS, DEFAULT_TOOL } from './tools.js';
-import { newPainting, isBlank, placeGrid, stamp, strokeLine, MAX_HUNG, PAPER_IDS, paperGrid, growPainting, growPad, zoomLevels, startCell, clampView, viewAround } from './grid.js';
+import { newPainting, isBlank, placeGrid, stamp, strokeLine, MAX_HUNG, PAPER_IDS, paperGrid, growSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
 import { fitRect, fitted } from './thumb.js';
 import { layoutTray, inRect } from './tray.js';
-import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkPaper, mkMore, mkZoom, mkHand, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
+import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkPaper, mkGridIcon, mkArrow, drawEdgeTab, drawGridDots, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
 import { savePng } from './export.js';
@@ -26,8 +26,12 @@ export function createPainting(env) {
   let hangingIndex = -1; // a painting still flying to the line
   let tool = DEFAULT_TOOL, color = 0;
   let paperId = PAPER_IDS[0]; // the sheet a bare easel gets (see grid.js)
+  let grid = false; // grid dots: off unless switched on (they also show while the view moves)
   let view = { cell: 1, ox: 0, oy: 0 }; // zoom and scroll: cell size, and where the paper's corner is on screen
-  let pan = null, pinch = null, wheelAcc = 0;
+  let anim = null, movedAt = -1e9; // a smooth move of the view, and when the view last moved
+  let pan = null, pinch = null, grow = null, lastPtr = null, lastTap = null;
+  let pickerOpen = false, trayKey = '', blankAt = -1, blankNow = true;
+  const hinted = {};
   let W = 0, H = 0, u = 1, place = null, tray = null;
   let paper = null, paperDirty = true, version = 0;
   let active = false, trayOpen = false, trayAnim = 0;
@@ -39,12 +43,13 @@ export function createPainting(env) {
   const say = (text, ms) => { lastSay = env.now(); env.say(text, ms); };
 
   function save() {
-    return { current: current ? encodePainting(current) : null, hung: hung.map(encodePainting) };
+    return { current: current ? encodePainting(current) : null, hung: hung.map(encodePainting), grid };
   }
   function load(saved) {
     if (!saved) { hung = examplePaintings(); return; } // first time ever: a couple on the line
     hung = (Array.isArray(saved.hung) ? saved.hung : []).map(decodePainting).filter(Boolean).slice(-MAX_HUNG);
     current = decodePainting(saved.current);
+    grid = saved.grid === true;
     lineDirty = true;
     version++;
   }
@@ -58,28 +63,58 @@ export function createPainting(env) {
   }
 
   /* ---- zoom and scroll ---- */
-  const levels = () => zoomLevels(current.w, current.h, W, H);
-  const levelIndex = (cell) => { const lv = levels(); let best = 0; lv.forEach((c, i) => { if (Math.abs(c - cell) < Math.abs(lv[best] - cell)) best = i; }); return best; };
+  // Zoom is smooth (any cell size between the table view and MAX_CELL). The
+  // table view shows the whole paper with some bare table round it, where the
+  // pull-out tabs sit. See docs/painting.md.
+  const margin = () => 24 * u;
+  const range = () => zoomRange(current.w, current.h, W, H, margin());
+  const moved = () => { movedAt = env.now(); }; // makes the grid dots show for a moment
+  const syncPlace = () => { place = { cell: view.cell, x: view.ox, y: view.oy, w: current.w * view.cell, h: current.h * view.cell }; };
   function setView(v) {
-    view = clampView(v, current.w, current.h, W, H);
-    place = { cell: view.cell, x: view.ox, y: view.oy, w: current.w * view.cell, h: current.h * view.cell };
+    const r = range();
+    view = clampView({ cell: clamp(v.cell, r.min, r.max), ox: v.ox, oy: v.oy }, current.w, current.h, W, H);
+    syncPlace();
   }
-  const startView = () => { const cell = startCell(current.w, current.h, W, H); setView({ cell, ox: Math.floor((W - current.w * cell) / 2), oy: 0 }); }; // centered across, at the top
-  // Step to the next zoom level (dir 1 closer, -1 farther) keeping the paper under (sx, sy) still.
-  function zoomStep(dir, sx, sy) {
-    const lv = levels(), i = clamp(levelIndex(view.cell) + dir, 0, lv.length - 1);
-    if (lv[i] === view.cell) return false;
-    setView(viewAround(lv[i], (sx - view.ox) / view.cell, (sy - view.oy) / view.cell, sx, sy, current.w, current.h, W, H));
-    return true;
+  function startView() {
+    anim = null;
+    const cell = startCell(current.w, current.h, W, H);
+    setView({ cell, ox: Math.round((W - current.w * cell) / 2), oy: 0 }); // centered across, at the top
   }
-  const panBy = (dx, dy) => setView({ cell: view.cell, ox: view.ox + dx, oy: view.oy + dy });
+  const tableView = () => clampView({ cell: range().min, ox: 0, oy: 0 }, current.w, current.h, W, H);
+  // Glide the view to v (a clamped view); straight there with reduced motion.
+  function animateTo(v) {
+    if (env.reducedMotion) { setView(v); moved(); return; }
+    anim = { from: { ...view }, to: v, t: 0 };
+  }
+  // Zoom by `factor` keeping the paper under (sx, sy) still.
+  function zoomAt(factor, sx, sy) {
+    const r = range(), cell = clamp(view.cell * factor, r.min, r.max);
+    anim = null; moved();
+    setView(viewAround(cell, (sx - view.ox) / view.cell, (sy - view.oy) / view.cell, sx, sy, current.w, current.h, W, H));
+  }
+  function panBy(dx, dy) { anim = null; moved(); setView({ cell: view.cell, ox: view.ox + dx, oy: view.oy + dy }); }
+  // Double tap: from the whole paper, in to a paintable size; from anywhere else, out to the whole paper.
+  function toggleZoom(sx, sy) {
+    if (view.cell <= range().min * 1.06) {
+      const c = startCell(current.w, current.h, W, H);
+      animateTo(viewAround(c, (sx - view.ox) / view.cell, (sy - view.oy) / view.cell, sx, sy, current.w, current.h, W, H));
+    } else animateTo(tableView());
+    moved();
+    hint('zoom', LINES.zoomed);
+  }
+  function hint(key, line) { if (hinted[key]) return; hinted[key] = true; say(line); }
+
+  function refreshTray() {
+    if (blankAt !== version) { blankNow = isBlank(current); blankAt = version; }
+    const picker = pickerOpen && blankNow, key = [W, H, u, blankNow, picker].join();
+    if (key !== trayKey) { trayKey = key; tray = layoutTray(W, H, u, { paper: blankNow, picker }); }
+  }
 
   function resize(w, h, unit) {
     W = w; H = h; u = unit;
-    tray = layoutTray(W, H, u);
     if (!current) freshPainting();
-    if (active) setView({ cell: levels()[levelIndex(view.cell)], ox: view.ox, oy: view.oy });
-    else startView();
+    if (active) setView(view); else startView();
+    trayKey = ''; refreshTray();
   }
   // Before the glide in: an empty easel adopts the sheet picked, shaped for this screen.
   function prepare() {
@@ -88,22 +123,19 @@ export function createPainting(env) {
     startView();
   }
   function open() {
-    active = true; trayOpen = false; trayAnim = 0; stroke = null; pan = pinch = null;
+    active = true; trayOpen = false; trayAnim = 0; stroke = null; pan = pinch = grow = null; pickerOpen = false;
     say(pick(LINES.easel));
   }
   function close() {
-    active = false; stroke = null; pan = pinch = null;
+    active = false; stroke = null; pan = pinch = grow = null;
     env.store.flush();
   }
 
   /* ---- paper ---- */
   function renderPaper() {
     if (!paper || paper.w !== current.w || paper.h !== current.h) paper = new Px(current.w, current.h);
-    const colors = [K(PAPER), ...PAINT.map((c) => K(c.hex))], speck = K(PAPER_SPECK);
-    for (let y = 0; y < current.h; y++) for (let x = 0; x < current.w; x++) {
-      const v = current.cells[y * current.w + x];
-      paper.b[y * current.w + x] = v ? colors[v] : bay(x, y) < 0.07 ? speck : colors[0];
-    }
+    const colors = [K(PAPER), ...PAINT.map((c) => K(c.hex))];
+    for (let i = 0; i < current.cells.length; i++) paper.b[i] = colors[current.cells[i]];
     paper.done();
     paperDirty = false;
   }
@@ -117,6 +149,8 @@ export function createPainting(env) {
   };
   function endStroke() {
     if (!stroke) return;
+    const quick = stroke.len <= 1 && env.now() - stroke.t0 < 250;
+    lastTap = quick ? { t: env.now(), x: stroke.x0, y: stroke.y0, before: stroke.before } : null; // a possible first half of a double tap
     stroke = null; version++; persist(); strokes++;
     if (tool !== 'cloth') usedColors.add(color);
     const now = env.now();
@@ -139,40 +173,30 @@ export function createPainting(env) {
     bumps[k] = env.now();
     if (k.startsWith('pot')) {
       color = +k.slice(3);
-      if (tool === 'cloth' || tool === 'hand') tool = DEFAULT_TOOL;
+      if (tool === 'cloth') tool = DEFAULT_TOOL;
       env.sound.play('pot', color);
       say(LINES.colors[PAINT[color].name]);
     } else if (TOOLS[k]) {
       tool = k; env.sound.play('tool'); say(LINES.tools[k]);
-    } else if (k === 'hand') {
-      tool = 'hand'; env.sound.play('tool'); say(LINES.hand);
-    } else if (k === 'zoom') {
-      const lv = levels(), i = levelIndex(view.cell), next = i + 1 < lv.length ? lv[i + 1] : lv[0];
-      env.sound.play('tool');
-      if (lv.length === 1) { say(LINES.zoomNone); return; }
-      setView(viewAround(next, (W / 2 - view.ox) / view.cell, (H / 2 - view.oy) / view.cell, W / 2, H / 2, current.w, current.h, W, H));
-      say(next === lv[0] ? LINES.zoomAll : LINES.zoomIn);
+    } else if (k === 'grid') {
+      grid = !grid; moved(); persist();
+      env.sound.play('tool'); say(grid ? LINES.gridOn : LINES.gridOff);
     } else if (k === 'paper') {
-      env.sound.play('tool');
-      if (!isBlank(current)) { say(LINES.paperUsed); return; }
-      paperId = PAPER_IDS[(PAPER_IDS.indexOf(paperId) + 1) % PAPER_IDS.length];
-      freshPainting();
-      say(LINES.paper[paperId]);
-    } else if (k === 'more') {
-      const pad = growPad(current), bigger = growPainting(current, pad);
-      env.sound.play('tool');
-      if (!bigger) { say(LINES.moreMax); return; }
-      const cell = view.cell, at = { x: view.ox, y: view.oy };
-      current = bigger; paperDirty = true; version++;
-      setView({ cell: levels()[levelIndex(cell)], ox: at.x - pad * cell, oy: at.y - pad * cell }); // the painting stays where it was
-      persist();
-      say(LINES.more);
+      pickerOpen = !pickerOpen; refreshTray(); env.sound.play('tool');
+    } else if (k.startsWith('sheet:')) {
+      paperId = k.slice(6); pickerOpen = false; trayOpen = false;
+      freshPainting(); refreshTray();
+      env.sound.play('tool'); say(LINES.paper[paperId]);
     } else if (k === 'hang') {
       if (isBlank(current)) { env.sound.play('tool'); say(LINES.empty); } else env.hang();
     }
   }
 
+  const tabsOn = () => active && !pinch && !stroke && !pan ? edgeTabs(place, W, H, u, grow !== null) : [];
+  const outward = { left: (g, x) => g.x0 - x, right: (g, x) => x - g.x0, top: (g, x, y) => g.y0 - y, bottom: (g, x, y) => y - g.y0 };
   function pointerDown(x, y, opts) {
+    refreshTray();
+    lastPtr = { x, y };
     if (inRect(tray.back, x, y)) { env.sound.play('tab'); leave(); return; }
     if (tabHit(x, y)) { toggleTray(); return; }
     if (trayAnim > 0.02 && y >= H - tray.panelH + panelOffset()) {
@@ -182,56 +206,91 @@ export function createPainting(env) {
       }
       return; // never paint through the tray
     }
-    if (tool === 'hand' || (opts && opts.pan)) { pan = { x, y, ox: view.ox, oy: view.oy }; trayOpen = false; return; }
+    if (opts && opts.pan) { anim = null; pan = { x, y, ox: view.ox, oy: view.oy }; trayOpen = false; return; }
+    for (const tab of tabsOn()) if (inRect(tab.hit, x, y)) { // pull more paper out
+      anim = null; trayOpen = false;
+      grow = { side: tab.side, base: current, view0: { ...view }, x0: x, y0: y, n: 0 };
+      env.sound.play('tab');
+      return;
+    }
+    const t = env.now();
+    if (lastTap && t - lastTap.t < 320 && Math.hypot(x - lastTap.x, y - lastTap.y) < 28 * u) { // double tap: not two dabs, a zoom
+      current.cells.set(lastTap.before); paperDirty = true; version++; persist();
+      lastTap = null; toggleZoom(x, y);
+      return;
+    }
     const c = cellAt(x, y, false);
     if (!c) return;
     trayOpen = false; // starting to paint tucks the tray away
-    stroke = { last: c, len: 0, before: current.cells.slice() }; // kept so a second finger can take the dab back
+    anim = null;
+    stroke = { last: c, len: 0, before: current.cells.slice(), t0: t, x0: x, y0: y }; // before: lets a second finger or a double tap take the dab back
     stamp(current, c[0], c[1], tool, color);
     paperDirty = true;
   }
+  function growTo(n) {
+    const g = grow, side = g.side;
+    const r = growSides(g.base, side === 'left' ? n : 0, side === 'top' ? n : 0, side === 'right' ? n : 0, side === 'bottom' ? n : 0);
+    current = r.p; paperDirty = true; version++;
+    const cell = g.view0.cell; // the painting stays where it was; the new paper unrolls outward
+    view = { cell, ox: g.view0.ox - r.l * cell, oy: g.view0.oy - r.t * cell };
+    syncPlace();
+  }
   function pointerMove(x, y) {
-    if (pan) { setView({ cell: view.cell, ox: pan.ox + x - pan.x, oy: pan.oy + y - pan.y }); return; }
+    lastPtr = { x, y };
+    if (grow) {
+      const n = Math.max(0, Math.round(outward[grow.side](grow, x, y) / grow.view0.cell));
+      if (n !== grow.n) { grow.n = n; growTo(n); moved(); }
+      return;
+    }
+    if (pan) { anim = null; moved(); setView({ cell: view.cell, ox: pan.ox + x - pan.x, oy: pan.oy + y - pan.y }); return; }
     if (!stroke) return;
     const c = cellAt(x, y, true);
     stroke.len++;
     strokeLine(current, stroke.last, c, tool, color);
     stroke.last = c; paperDirty = true;
   }
-  const pointerUp = () => { if (pan) { pan = null; return; } endStroke(); };
+  function pointerUp() {
+    lastPtr = null;
+    if (grow) {
+      const g = grow;
+      grow = null;
+      if (g.n > 0) { persist(); hint('tabs', LINES.tabsDone); }
+      animateTo(tableView()); // settle back to seeing the whole, bigger paper
+      return;
+    }
+    if (pan) { pan = null; return; }
+    endStroke();
+  }
   const leave = () => { say(LINES.bye, 2600); env.exit(); };
-  // Two fingers: move the paper and step through the zoom levels. A stroke
-  // already under way (a palm resting down) is left alone.
-  const canGesture = () => !stroke || stroke.len < 8;
+  // Two fingers: move and zoom the paper. A stroke already under way (a palm
+  // resting down) is left alone.
+  const canGesture = () => !grow && (!stroke || stroke.len < 8);
   const dist = (a, b) => Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
   function gestureStart(a, b) {
     if (stroke) { current.cells.set(stroke.before); stroke = null; paperDirty = true; } // a pinch is not a dab
-    pan = null; trayOpen = false;
-    pinch = { d0: dist(a, b), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, view: { ...view }, i0: levelIndex(view.cell) };
+    pan = null; trayOpen = false; anim = null; lastPtr = null; lastTap = null;
+    pinch = { d0: dist(a, b), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, view: { ...view } };
   }
   function gestureMove(a, b) {
     if (!pinch) return;
-    const lv = levels(), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    const i = clamp(pinch.i0 + Math.round(Math.log(dist(a, b) / pinch.d0) / Math.log(1.5)), 0, lv.length - 1);
-    const v = pinch.view; // the paper point first under the fingers stays under them
-    setView(viewAround(lv[i], (pinch.mid.x - v.ox) / v.cell, (pinch.mid.y - v.oy) / v.cell, mid.x, mid.y, current.w, current.h, W, H));
+    const r = range(), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, v = pinch.view;
+    const cell = clamp((v.cell * dist(a, b)) / pinch.d0, r.min, r.max);
+    moved(); // the paper point first under the fingers stays under them
+    setView(viewAround(cell, (pinch.mid.x - v.ox) / v.cell, (pinch.mid.y - v.oy) / v.cell, mid.x, mid.y, current.w, current.h, W, H));
   }
-  const gestureEnd = () => { pinch = null; };
+  function gestureEnd() { if (pinch) hint('zoom', LINES.zoomed); pinch = null; }
   // Mouse wheel scrolls; with ctrl (or a trackpad pinch) it zooms.
   function wheel(x, y, dx, dy, zoom) {
-    if (!zoom) { panBy(-dx, -dy); return; }
-    wheelAcc += dy;
-    if (Math.abs(wheelAcc) < 30) return;
-    zoomStep(wheelAcc < 0 ? 1 : -1, x, y);
-    wheelAcc = 0;
+    if (grow || pinch) return;
+    if (zoom) zoomAt(Math.exp(-dy * 0.0025), x, y); else panBy(-dx, -dy);
   }
   function key(e) {
     if (e.key === 'Escape') leave();
-    else if (e.key === '+' || e.key === '=') zoomStep(1, W / 2, H / 2);
-    else if (e.key === '-' || e.key === '_') zoomStep(-1, W / 2, H / 2);
+    else if (e.key === '+' || e.key === '=') zoomAt(1.3, W / 2, H / 2);
+    else if (e.key === '-' || e.key === '_') zoomAt(1 / 1.3, W / 2, H / 2);
+    else if (e.key === 'g' || e.key === 'G') press({ k: 'grid' });
     else if (e.key.startsWith('Arrow')) {
-      const d = 4 * view.cell;
-      panBy(e.key === 'ArrowLeft' ? d : e.key === 'ArrowRight' ? -d : 0, e.key === 'ArrowUp' ? d : e.key === 'ArrowDown' ? -d : 0);
+      panBy(e.key === 'ArrowLeft' ? 40 : e.key === 'ArrowRight' ? -40 : 0, e.key === 'ArrowUp' ? 40 : e.key === 'ArrowDown' ? -40 : 0);
     }
   }
 
@@ -267,10 +326,9 @@ export function createPainting(env) {
     if (k === 'brushB') return sprite('bb' + hex, () => mkBrush(true, hex));
     if (k === 'sponge') return sprite('sp' + hex, () => mkSponge(hex));
     if (k === 'cloth') return sprite('cloth', mkCloth);
-    if (k === 'hand') return sprite('hand', mkHand);
-    if (k === 'zoom') return sprite('zoom', mkZoom);
-    if (k === 'more') return sprite('more', mkMore);
+    if (k === 'grid') return sprite('grid', mkGridIcon);
     if (k === 'paper') return sprite('paper' + paperId, () => mkPaper(paperId));
+    if (k.startsWith('sheet:')) return sprite('paper' + k.slice(6), () => mkPaper(k.slice(6)));
     return sprite('hang', mkHang);
   }
 
@@ -280,7 +338,7 @@ export function createPainting(env) {
       drawTrayBack(c, 0, H - tray.panelH + off, W, tray.panelH, u);
       for (const s of tray.shelves) drawShelf(c, s.x, s.y + off, s.w, u);
       for (const it of tray.items) {
-        const img = itemSprite(it.k), sel = it.k === 'pot' + color || it.k === tool;
+        const img = itemSprite(it.k), sel = it.k === 'pot' + color || it.k === tool || (it.k === 'grid' && grid) || it.k === 'sheet:' + paperId;
         const bt = bumps[it.k] ? (now - bumps[it.k]) / 1000 : 9, bump = bt < 0.3 ? Math.round(Math.sin((bt / 0.3) * Math.PI) * 4 * u) : 0;
         const w = img.width * u, h = img.height * u, x = Math.round(it.cx - w / 2), y = it.base - h - (sel ? 3 * u : 0) - bump + off;
         if (sel) { c.fillStyle = 'rgba(255,250,220,.55)'; c.fillRect(x - u, it.base + off - u, w + 2 * u, 2 * u); }
@@ -295,14 +353,39 @@ export function createPainting(env) {
     c.globalAlpha = 1;
   }
 
+  const DRIFT_SPEED = 240; // canvas pixels a second when painting at the very edge of a zoomed paper
   function update(dt) {
+    refreshTray();
+    if (!trayOpen && trayAnim <= 0.001) pickerOpen = false;
     const target = trayOpen ? 1 : 0;
     trayAnim = env.reducedMotion ? target : clamp(trayAnim + (target ? dt * 5 : -dt * 6), 0, 1);
+    if (anim) {
+      anim.t = Math.min(1, anim.t + dt / 0.3);
+      const e = anim.t * anim.t * (3 - 2 * anim.t), a = anim.from, b = anim.to;
+      setView({ cell: a.cell + (b.cell - a.cell) * e, ox: a.ox + (b.ox - a.ox) * e, oy: a.oy + (b.oy - a.oy) * e });
+      moved();
+      if (anim.t >= 1) anim = null;
+    }
+    if (stroke && lastPtr && !pinch) { // painting near an edge of a zoomed paper carries the view along
+      const band = Math.min(W, H) * 0.1, push = (p, size) => (p < band ? (band - p) / band : p > size - band ? -(p - (size - band)) / band : 0);
+      const dx = push(lastPtr.x, W) * DRIFT_SPEED * dt, dy = push(lastPtr.y, H) * DRIFT_SPEED * dt;
+      if (dx || dy) {
+        const ox = view.ox, oy = view.oy;
+        panBy(dx, dy);
+        if (view.ox !== ox || view.oy !== oy) pointerMove(lastPtr.x, lastPtr.y); // keep painting under the finger
+      }
+    }
+    if (!stroke && !pinch && !anim && !hinted.tabs && tabsOn().length) hint('tabs', LINES.tabs);
   }
   function draw(c, now) {
-    c.fillStyle = PAPER;
+    const k = place.cell, covers = place.x <= k && place.y <= k && place.x + place.w >= W - k && place.y + place.h >= H - k; // within a cell counts: plain paper fills the rest
+    c.fillStyle = covers ? PAPER : WOOD_TRIM; // the bare table shows when the paper is smaller than the screen
     c.fillRect(0, 0, W, H);
+    if (!covers) { c.fillStyle = SHADOW; c.fillRect(place.x + 2 * u, place.y + 2 * u, place.w, place.h); }
     c.drawImage(paperCanvas(), place.x, place.y, place.w, place.h);
+    const base = grid ? 0.3 : 0, boost = clamp(1 - (env.now() - movedAt) / 700, 0, 1); // dots show brightly while the view moves, then settle
+    drawGridDots(c, place, W, H, base + (0.85 - base) * boost);
+    for (const t of tabsOn()) drawEdgeTab(c, Math.round(t.x), Math.round(t.y), Math.round(t.w), Math.round(t.h), u, sprite('arrow' + t.side, () => mkArrow(t.side)));
     drawTray(c, now);
   }
 
@@ -356,7 +439,8 @@ export function createPainting(env) {
     snapshot: paperCanvas, // full-size picture of the easel painting
     paperRect: () => place, // where the paper sits on screen when open
     boardFit: (bw, bh) => fitRect(current.w, current.h, bw, bh),
-    _state: () => ({ current, hung, tool, color, trayOpen, trayAnim, paperId, view }), // for tests
+    _state: () => ({ current, hung, tool, color, trayOpen, trayAnim, paperId, view, grid, tabs: tabsOn().length }), // for tests
+    _tabs: () => tabsOn(),
     _tray: () => tray,
   };
 }

@@ -134,6 +134,8 @@ export function createWorld(opts) {
   const hitSadie = (sx, sy) => { const [wx, wy] = toRoom(sx, sy); return wx >= anchors.sadie.x + 6 && wx < anchors.sadie.x + 40 && wy >= anchors.sadie.y + 2 && wy < anchors.sadie.y + 34; };
   function hitRoom(sx, sy) {
     const [wx, wy] = toRoom(sx, sy);
+    // Hung paintings are on the wall: only the paper on the easel (and Sadie) is in front of them.
+    if (inBox(wx, wy, anchors.board)) return hotspots.find((h) => h.action.activity) || null;
     for (const id in activities) {
       const i = activities[id].room.hit(wx, wy, anchors.clothesline);
       if (i >= 0) return { art: activities[id], index: i };
@@ -361,7 +363,7 @@ export function createWorld(opts) {
     view = { ox, oy, z };
     c.setTransform(z, 0, 0, z, ox, oy);
     c.drawImage(bitmap, 0, 0);
-    for (const id in activities) { activities[id].room.drawBoard(c, anchors.board); activities[id].room.drawLine(c, anchors.clothesline); } // hung paintings in front of the easel
+    for (const id in activities) { activities[id].room.drawLine(c, anchors.clothesline); activities[id].room.drawBoard(c, anchors.board); } // hung paintings hang on the wall, behind the easel and everything else
     c.drawImage(sadieSprite({ blinking: T < sadie.blinkUntil, flick: sadie.flick, sway: !RM && !still }, T), anchors.sadie.x, anchors.sadie.y - Math.round(sadie.hop));
     fx.draw(c);
     c.setTransform(1, 0, 0, 1, 0, 0);
