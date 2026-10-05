@@ -226,6 +226,7 @@ so) or **proposed** (a default picked, awaiting the user).
 
 - Which learning activity comes first after painting? (Not known yet;
   focus is painting.)
+- Which license, if any? None chosen (user, 2026-10-05: not sure yet); with no LICENSE file all rights stay with the owner. Pixelify Sans keeps its own OFL license in `assets/fonts/LICENSE.txt`.
 - Automatic backup to Google Drive: possible from the GitHub Pages site, but it adds a
   Google script, a sign-in and a parent screen, which break rule 10 as written. Parked
   until the user decides; findings in the research note (see saving.md).
@@ -255,8 +256,6 @@ so) or **proposed** (a default picked, awaiting the user).
   CI installs with `npm ci`. Linting (`npm run lint`, `eslint.config.js`) is part of `npm run check`
   and checks for mistakes only, no style. Nothing here ships to the child.
 - [proposed] GitHub Actions are pinned to commit hashes; Dependabot proposes updates monthly.
-- [proposed] `LICENSE` says all rights reserved (Pixelify Sans keeps its own OFL license).
-  The user may want a different license if the repo is ever shared.
 - [proposed] WebKit (Safari's engine) runs a short advisory check in CI (`npm run engines`); it
   reports but does not block a merge. Reason: iPhones are likely the main device and only Chromium
   was tested. The user's phone remains the real test.
