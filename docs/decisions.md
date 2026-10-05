@@ -184,6 +184,7 @@ so) or **proposed** (a default picked, awaiting the user).
 - [confirmed] Stamps cannot be moved after they are placed; undo and stamp again. Reason:
   one less thing for the child to learn (user, 2026-10-05). Two stamps to start: Sadie and
   Chooter the dog (black, a little white on the chest and front paws).
+- [confirmed] The stamp preview stays centered under the finger (not shown above it), user, 2026-10-05.
 - [proposed] A stamp is painted into the paint grid in its own colors when the finger lifts
   (a ghost shows where it will land), so undo, saving, the PNG and the clothesline need no
   change and the saved format stays version 2. Alternative: a separate movable stamp layer
@@ -206,8 +207,6 @@ so) or **proposed** (a default picked, awaiting the user).
 - Should the book ever have a limit, pages or sorting (by date, by color)? Today it is one
   endless scrolling grid, oldest first.
 - Should hanging from the book with a full line offer to swap with one on the line?
-- Does a stamp need to stay clear of a fat fingertip while placing (shown above the finger on
-  touch) or is centered under it fine? Needs a try on a real phone.
 - Which stamps next, and should a drawer grow a second page after about 8?
 
 The full checklist is in [engineering.md](engineering.md).
