@@ -32,8 +32,8 @@ tabs on the paper.
 
 - **Edge arrows**: while the paper fills the screen the real pull-out tabs are off screen,
   so small arrow tabs sit on the screen edges (left, right, top, and bottom off to the
-  side of the tray tab; the bottom one hides while the tray is open). Pressing one
-  glides out to the table view, where the real tabs are. They hide while painting.
+  side of the tray tab; the bottom one hides while the tray is open). A tap (let go in place within half a second) on one
+  glides out to the table view; a finger that lands there and is joined by a second one scrolls instead, where the real tabs are. They hide while painting.
 - **Default size**: every new painting, on a first start, after hanging one up,
   and when an empty easel is reopened, starts at the default size (the natural
   grid for the screen, `naturalGrid` in `grid.js`). Pulling tabs on a bare easel
@@ -64,8 +64,10 @@ tabs on the paper.
   right/middle-button drag also work. While painting within about a tenth of the
   screen of an edge of a zoomed paper, the view drifts that way and keeps painting
   under the finger. A second finger that lands while a stroke is already under way
-  is ignored (a resting palm); a one-dab stroke is taken back when it turns out to
-  be a pinch.
+  is ignored (a resting palm) once that stroke is over 8 moves and 0.4 s old; a younger
+  stroke is taken back when a second finger turns it into a scroll or pinch.
+- **Opening a painting**: the view starts at the usual zoom; if any paint would be off
+  screen it zooms out and centers on the paint so all of it is in sight (`startView`).
 - **Scroll ticks**: while panning or zooming, ruler ticks (every 10 cells, longer every 50)
   show on all four screen edges, fixed to the paper, and fade out after ~1 s (`drawTicks`).
   Skipped when zoomed out so far they would crowd. No dots across the screen.

@@ -484,6 +484,19 @@ for (const target of targets) {
   await page.waitForTimeout(300);
   const edge = await state();
   assert.ok(edge.view.ox + 2000 * edge.view.cell < 420, 'scrolled to the far edge, the wall shows past the paper');
+  // Opening a painting with paint far apart zooms out so every mark is on screen.
+  await page.goto(`${url}/index.html?test`);
+  await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room again');
+  await page.mouse.click(5, 5);
+  await page.evaluate(() => window.__studio.activity('painting').load({ current: { w: 2000, h: 2000, d: 'A20010BA3781889BA198099' }, hung: [], book: [] }));
+  await page.evaluate(() => window.__studio.panTo(760));
+  await page.waitForTimeout(900);
+  await page.mouse.click(easel.x, easel.y);
+  await until(page, () => window.__studio.debug().mode === 'painting', 'painting mode again');
+  await page.waitForTimeout(1500);
+  const far = await state();
+  const on = (x, y) => x * far.view.cell + far.view.ox >= 0 && x * far.view.cell + far.view.ox <= 420 && y * far.view.cell + far.view.oy >= 0 && y * far.view.cell + far.view.oy <= 800;
+  assert.ok(on(10, 10) && on(1901, 1901), `all the paint is on screen when a painting opens (cell ${far.view.cell})`);
   assert.deepEqual(errors, [], 'no console errors on the biggest paper');
   await page.close();
   console.log('ok  biggest paper');

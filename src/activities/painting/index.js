@@ -43,7 +43,7 @@ export function createPainting(env) {
   const undoStack = []; // undo steps (paper.js: old size and the tiles a change touched), newest last (not saved)
   let view = { cell: 1, ox: 0, oy: 0 }; // zoom and scroll: cell size, and where the paper's corner is on screen
   let anim = null; // a smooth move of the view
-  let pan = null, pinch = null, grow = null, lastPtr = null, lastTap = null;
+  let pan = null, pinch = null, grow = null, lastPtr = null, lastTap = null, peekTap = null;
   let trayKey = '', clearHold = null; // clearHold: when a finger went down on the bucket
   const hinted = {};
   let W = 0, H = 0, u = 1, place = null, tray = null;
@@ -98,6 +98,14 @@ export function createPainting(env) {
     if (showWhole) { setView(tableView()); return; }
     const cell = startCell(current.w, current.h, W, H);
     setView({ cell, ox: Math.round((W - current.w * cell) / 2), oy: 0 }); // centered across, at the top
+    const b = current.bounds();
+    if (!b) return;
+    const seen = (x, y) => x * view.cell + view.ox >= 0 && x * view.cell + view.ox <= W && y * view.cell + view.oy >= 0 && y * view.cell + view.oy <= H;
+    if (seen(b.x0, b.y0) && seen(b.x1 + 1, b.y1 + 1)) return;
+    // paint lies off screen: zoom out and move until all of it is in sight, a little room round it
+    const m = 6 * u, fit = Math.min((W - 2 * m) / (b.x1 - b.x0 + 1), (H - 2 * m) / (b.y1 - b.y0 + 1));
+    const r = range(), c = clamp(fit, r.min, Math.max(cell, r.min));
+    setView(viewAround(c, (b.x0 + b.x1 + 1) / 2, (b.y0 + b.y1 + 1) / 2, W / 2, H / 2, current.w, current.h, W, H));
   }
   const tableView = () => clampView({ cell: range().min, ox: 0, oy: 0 }, current.w, current.h, W, H);
   // Glide the view to v (a clamped view); straight there with reduced motion.
@@ -150,7 +158,7 @@ export function createPainting(env) {
   }
   function close() {
     chooser.close(); bookPtr = null;
-    active = false; stroke = null; pan = pinch = grow = clearHold = null;
+    active = false; stroke = null; pan = pinch = grow = clearHold = peekTap = null;
     env.store.flush();
   }
 
@@ -237,8 +245,8 @@ export function createPainting(env) {
       return; // never paint through the tray
     }
     if (opts && opts.pan) { anim = null; pan = { x, y, ox: view.ox, oy: view.oy }; trayOpen = false; return; }
-    for (const tab of peekOn()) if (inRect(tab.hit, x, y)) { // an arrow on the screen edge: glide out to where the paper can be pulled
-      trayOpen = false; env.sound.play('tab'); animateTo(tableView());
+    for (const tab of peekOn()) if (inRect(tab.hit, x, y)) { // an arrow on the screen edge: a tap (let go in place) glides out to where the paper can be pulled
+      peekTap = { t: env.now(), x, y }; // a finger that lands here to scroll with a second one must not zoom out
       return;
     }
     for (const tab of tabsOn()) if (inRect(tab.hit, x, y)) { // pull more paper out
@@ -278,6 +286,7 @@ export function createPainting(env) {
   function pointerMove(x, y) {
     if (inBook) { bookMove(x, y); return; }
     lastPtr = { x, y };
+    if (peekTap && Math.hypot(x - peekTap.x, y - peekTap.y) > 12 * u) peekTap = null;
     if (grow) return; // update() turns the pull into paper
     if (pan) { anim = null; moved(); setView({ cell: view.cell, ox: pan.ox + x - pan.x, oy: pan.oy + y - pan.y }); return; }
     if (!stroke) return;
@@ -314,6 +323,11 @@ export function createPainting(env) {
   function pointerUp() {
     if (inBook) { bookUp(); return; }
     lastPtr = null;
+    if (peekTap) {
+      const tap = peekTap; peekTap = null;
+      if (env.now() - tap.t < 500) { trayOpen = false; env.sound.play('tab'); animateTo(tableView()); }
+      return;
+    }
     if (clearHold) { clearHold = null; say(LINES.clearHint); return; } // let go too soon
     if (grow) {
       const g = grow;
@@ -327,11 +341,11 @@ export function createPainting(env) {
   const leave = () => { say(inBook ? LINES.bookBye : LINES.bye, 2600); env.exit(); };
   // Two fingers: move and zoom the paper. A stroke already under way (a palm
   // resting down) is left alone.
-  const canGesture = () => !inBook && !grow && (!stroke || stroke.len < 8);
+  const canGesture = () => !inBook && !grow && (!stroke || stroke.len < 8 || env.now() - stroke.t0 < 400); // a young stroke is a first finger still settling: the second one is the start of a scroll
   const dist = (a, b) => Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
   function gestureStart(a, b) {
     if (stroke) { current.restore(current.endJournal(current.size())); stroke = null; version++; } // a pinch is not a dab
-    pan = null; trayOpen = false; anim = null; lastPtr = null; lastTap = null;
+    pan = null; trayOpen = false; anim = null; lastPtr = null; lastTap = null; peekTap = null;
     pinch = { d0: dist(a, b), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, view: { ...view } };
   }
   function gestureMove(a, b) {
@@ -583,7 +597,7 @@ export function createPainting(env) {
     c.fillRect(0, 0, W, H);
     const wallX = current.w >= MAX_SIDE, wallY = current.h >= MAX_SIDE;
     if (wallX || wallY) drawWall(c, place, wallX, wallY, W, H, u); // the paper cannot get any bigger: show the wall
-    if (!covers) { c.fillStyle = SHADOW; c.fillRect(place.x + 2 * u, place.y + 2 * u, place.w, place.h); }
+    if (!covers) { c.fillStyle = SHADOW; c.fillRect(place.x + 2 * u, place.y + 2 * u, place.w, place.h); c.fillStyle = PAPER; c.fillRect(place.x, place.y, place.w, place.h); } // tiles only draw paint, so the paper itself is laid down here
     drawTiles(c, current, place, W, H);
     if (!grow) drawTicks(c, place, current.w, current.h, W, H, u, 1 - (env.now() - movedAt) / 900); // ruler ticks slide by while scrolling, then fade
     if (grow) drawPullCues(c);
