@@ -31,6 +31,10 @@ A painting keeps its own size.
 No zoom buttons and no paper controls in the tray: the controls are gestures and
 tabs on the paper.
 
+- **Edge arrows**: while the paper fills the screen the real pull-out tabs are off screen,
+  so small arrow tabs sit on the screen edges (left, right, top, and bottom off to the
+  side of the tray tab; the bottom one hides while the tray is open). Pressing one
+  glides out to the table view, where the real tabs are. They hide while painting.
 - **Default size**: every new painting, on a first start, after hanging one up,
   and when an empty easel is reopened, starts at the default size (the natural
   grid for the screen, `naturalGrid` in `grid.js`). Pulling tabs on a bare easel
@@ -89,13 +93,38 @@ Only one finger paints; a second touch is ignored so a resting palm does not.
 
 Finished paintings hang on a clothesline in the room, with pegs, on the wall
 behind everything: the whole easel (frame and legs) and Sadie are in front of
-them (the room draws the easel again over the line, `paintFront`). Up to 13; the
-oldest is dropped past that. Each hangs at 36 art pixels
+them (the room draws the easel again over the line, `paintFront`). Up to 13; when
+it is full a newly hung painting goes into the book instead, so nothing is ever
+dropped. Each hangs at 36 art pixels
 wide and as tall as its shape says (thin lines survive shrinking). Wide ones are
 shorter. Tall ones drop down; past about 84 pixels the rest is **rolled up** with
 a ribbon at the bottom. The roll is only how it is drawn: nothing is cut from the
-saved painting or the PNG. Tapping one makes Sadie comment. The first time the app
-opens, two example paintings hang there.
+saved painting or the PNG. The first time the app opens, two example paintings hang there.
+
+**Tap a hung painting** (the examples too) to paint on it: the camera glides to the easel
+and the painting is there at its own size. The painting that was on the easel takes its
+place on the line (a bare easel just gives way), so nothing is lost. Hanging it again
+puts it at the end of the line, or in the book when the line is full.
+
+**Hold a hung painting** (about 0.65 s). Right after the finger lands, a big ring of dots
+(about 140 css px across, so a big fingertip fits in the middle with the ring visible all round it) fills in clockwise around the
+touch to show that holding does something; at the end the rest of the screen dims and three big
+wooden buttons, pictures only, appear under it: **save** (a down arrow, offers the
+PNG), **to the book** (a closed book), **delete** (a trash can). Delete has no undo,
+so the trash must be *held* (about 0.9 s, red water rises in it, like the bucket); a
+tap only makes Sadie say to hold it. A tap anywhere else closes the choices.
+
+## The book
+
+A big book standing on the floor left of the easel holds every painting that did not
+fit on the line (any number, oldest first). Tap it like the easel: the camera glides
+in and the book's page fills the whole screen: small cards in columns, drag or wheel
+to scroll, the door top-left leaves. **Tap a card** to paint on it (it goes to the easel,
+the easel's painting takes its place in the book). **Hold a card** (same ring)
+for the same kind of choices: **save**, **hang** (the peg; it flies to the line; with
+the line full it is dimmed and Sadie says the line is full, nothing moves) and
+**delete** (held). Code: `book.js` (layout, pure), `book-art.js` (drawing),
+`collection.js` (where paintings move, pure), the chooser in `src/ui/`.
 
 ## Autosave
 

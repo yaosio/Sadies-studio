@@ -52,7 +52,7 @@ for (const target of targets) {
   assert.ok(Math.abs(caught - before) < 25, `${target}: catching a flick does not jump (${before} -> ${caught})`);
   await page.mouse.up();
 
-  // hold a finger on a hung painting: it is offered as a PNG download
+  // hold a finger on a hung painting: it offers save, book and delete; save gives a PNG download
   const slotPos = await page.evaluate(() => {
     const w = window.__studio, d = w.debug(), r = w.activity('painting').room.slotRect(0, d.anchors.clothesline);
     return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
@@ -61,8 +61,12 @@ for (const target of targets) {
   await page.waitForTimeout(900);
   const spot = await page.evaluate((p) => { const d = window.__studio.debug(); return { x: (p.x * d.view.z + d.view.ox) * d.S, y: (p.y * d.view.z + d.view.oy) * d.S }; }, slotPos);
   await page.mouse.move(spot.x, spot.y);
-  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 3000 }), (async () => { await page.mouse.down(); await page.waitForTimeout(900); await page.mouse.up(); })()]);
+  await page.mouse.down(); await page.waitForTimeout(900); await page.mouse.up();
+  assert.ok(await page.evaluate(() => window.__studio.chooser.isOpen()), `${target}: holding a hung painting offers choices`);
+  const saveBtn = await page.evaluate(() => { const d = window.__studio.debug(), r = window.__studio.chooser._rects()[0]; return { x: (r.x + r.w / 2) * d.S, y: (r.y + r.h / 2) * d.S }; });
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 3000 }), page.mouse.click(saveBtn.x, saveBtn.y)]);
   assert.match(download.suggestedFilename(), /^sadies-painting-1\.png$/);
+  assert.equal(await page.evaluate(() => window.__studio.chooser.isOpen()), false, 'the chooser closes after saving');
   await page.evaluate(() => window.__studio.panTo(760));
   await page.waitForTimeout(900);
 
@@ -130,6 +134,156 @@ for (const target of targets) {
   await ctx.close();
   console.log(`ok  ${target}`);
 }
+// The full clothesline and the book: a 14th painting goes into the book, nothing is dropped, and
+// long-press offers save / book / delete (hang, in the book). Desktop, mouse.
+for (const target of targets) {
+  const errors = [];
+  const ctx = await browser.newContext({ viewport: { width: 1000, height: 600 } });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => errors.push(e.message));
+  page.on('console', (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !m.text().includes('willReadFrequently') && !m.text().includes('AudioContext was not allowed')) errors.push(m.text()); });
+  await page.goto(`${url}/${target}?test`);
+  await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room');
+  await page.mouse.click(5, 5);
+  await page.evaluate(() => { // a full line
+    const enc = (v) => ({ w: 6, h: 4, d: 'B' + 'ABCDEFGHIJ'[v % 10] + 'A22' });
+    window.__studio.activity('painting').load({ current: null, hung: Array.from({ length: 13 }, (_, i) => enc(i)), book: [] });
+  });
+  const state = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { hung: s.hung.length, book: s.book.length, inBook: s.inBook }; });
+  const S = () => page.evaluate(() => window.__studio.debug().S);
+  const waitMode = async (m) => { for (let i = 0; i < 100; i++) { if ((await page.evaluate(() => window.__studio.debug().mode)) === m) return; await page.waitForTimeout(50); } throw new Error('timed out waiting for mode ' + m); };
+  const choice = async (i) => { const sc = await S(), r = await page.evaluate((i) => window.__studio.chooser._rects()[i] || window.__studio.activity('painting')._book().rects[i], i); return { x: (r.x + r.w / 2) * sc, y: (r.y + r.h / 2) * sc }; };
+  const hold = async (ms) => { await page.mouse.down(); await page.waitForTimeout(ms); };
+
+  // paint and hang a 14th: it goes to the book, the line keeps all 13
+  await page.evaluate(() => window.__studio.enter('painting'));
+  await waitMode('painting'); await page.waitForTimeout(1200);
+  await page.mouse.move(300, 300); await page.mouse.down();
+  for (let i = 1; i <= 10; i++) await page.mouse.move(300 + i * 25, 300 + Math.sin(i) * 40);
+  await page.mouse.up();
+  const tr = await page.evaluate(() => { const d = window.__studio.debug(), t = window.__studio.activity('painting')._tray(); return { S: d.S, tab: t.tab, H: d.H }; });
+  await page.mouse.click((tr.tab.x + tr.tab.w / 2) * tr.S, (tr.H - tr.tab.h / 2) * tr.S);
+  await page.waitForTimeout(500);
+  const hangIt = await page.evaluate(() => { const it = window.__studio.activity('painting')._tray().items.find((i) => i.k === 'hang'); return { x: it.hit.x + it.hit.w / 2, y: it.hit.y + it.hit.h / 2 }; });
+  await page.mouse.click(hangIt.x * tr.S, hangIt.y * tr.S);
+  await waitMode('room');
+  let st = await state();
+  assert.deepEqual([st.hung, st.book], [13, 1], `${target}: with the line full a new painting goes into the book and nothing is dropped`);
+
+  // while the paper fills the screen, small arrows on its edges show it can be resized; pressing one glides out to the table view with the real tabs
+  await page.evaluate(() => window.__studio.enter('painting'));
+  await waitMode('painting'); await page.waitForTimeout(1200);
+  const peeks = await page.evaluate(() => { const a = window.__studio.activity('painting'), d = window.__studio.debug(), t = a._peek().find((x) => x.side === 'left'); return { n: a._peek().length, tabs: a._state().tabs, x: (t.x + t.w / 2) * d.S, y: (t.y + t.h / 2) * d.S }; });
+  assert.deepEqual([peeks.n, peeks.tabs], [4, 0], `${target}: edge arrows show at the default zoom`);
+  await page.mouse.click(peeks.x, peeks.y);
+  await page.waitForTimeout(700);
+  assert.equal(await page.evaluate(() => window.__studio.activity('painting')._state().tabs), 4, 'pressing an edge arrow glides out to the pull-out tabs');
+  await page.keyboard.press('Escape');
+  await waitMode('room');
+
+  // tap the book in the room: the camera glides there and the book opens
+  await page.evaluate(() => window.__studio.panTo(534));
+  await page.waitForTimeout(1000);
+  const bookSpot = await page.evaluate(() => { const d = window.__studio.debug(), b = d.anchors.book; return { x: ((b.x + b.w / 2) * d.view.z + d.view.ox) * d.S, y: ((b.y + b.h / 2) * d.view.z + d.view.oy) * d.S }; });
+  await page.mouse.click(bookSpot.x, bookSpot.y);
+  await waitMode('painting');
+  assert.equal((await state()).inBook, true, `${target}: tapping the book opens the book`);
+  await page.waitForTimeout(300);
+
+  // hold a painting in the book: save, hang, delete
+  const card = await page.evaluate(() => { const c = window.__studio.activity('painting')._book().layout.cards[0], d = window.__studio.debug(); return { x: (c.x + c.w / 2) * d.S, y: (c.y + c.h / 2) * d.S }; });
+  await page.mouse.move(card.x, card.y); await hold(900); await page.mouse.up();
+  assert.ok((await page.evaluate(() => window.__studio.activity('painting')._book().chooser)), 'holding a painting in the book offers choices');
+  // hang with a full line: Sadie says it is full, nothing moves, the choices stay
+  let b = await choice(1); await page.mouse.click(b.x, b.y);
+  st = await state();
+  assert.deepEqual([st.hung, st.book], [13, 1], 'hang does nothing while the line is full');
+  assert.ok(await page.evaluate(() => window.__studio.activity('painting')._book().chooser), 'the choices stay open');
+  // delete needs a hold: a tap does nothing
+  b = await choice(2); await page.mouse.click(b.x, b.y);
+  assert.equal((await state()).book, 1, `${target}: a tap on the trash deletes nothing`);
+  await page.mouse.move(b.x, b.y); await hold(1200); await page.mouse.up();
+  assert.equal((await state()).book, 0, `${target}: holding the trash deletes the painting`);
+  await page.keyboard.press('Escape');
+  await waitMode('room');
+
+  // hold a hung painting: move it to the book (line 12, book 1), then hang it back from the book (line 13, book 0)
+  const openChooserOnHung = async (i) => {
+    const pos = await page.evaluate((i) => { const w = window.__studio, d = w.debug(), r = w.activity('painting').room.slotRect(i, d.anchors.clothesline); return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }, i);
+    await page.evaluate((x) => window.__studio.panTo(x), pos.x);
+    await page.waitForTimeout(900);
+    const spot = await page.evaluate((p) => { const d = window.__studio.debug(); return { x: (p.x * d.view.z + d.view.ox) * d.S, y: (p.y * d.view.z + d.view.oy) * d.S }; }, pos);
+    await page.mouse.move(spot.x, spot.y); await hold(900); await page.mouse.up();
+    assert.ok(await page.evaluate(() => window.__studio.chooser.isOpen()), 'choices on the hung painting');
+  };
+  await openChooserOnHung(3);
+  b = await choice(1); await page.mouse.click(b.x, b.y);
+  st = await state();
+  assert.deepEqual([st.hung, st.book], [12, 1], `${target}: move to the book takes it off the line`);
+  await page.evaluate(() => window.__studio.panTo(534));
+  await page.waitForTimeout(1000);
+  const bs2 = await page.evaluate(() => { const d = window.__studio.debug(), b = d.anchors.book; return { x: ((b.x + b.w / 2) * d.view.z + d.view.ox) * d.S, y: ((b.y + b.h / 2) * d.view.z + d.view.oy) * d.S }; });
+  await page.mouse.click(bs2.x, bs2.y);
+  await waitMode('painting'); await page.waitForTimeout(300);
+  const card2 = await page.evaluate(() => { const c = window.__studio.activity('painting')._book().layout.cards[0], d = window.__studio.debug(); return { x: (c.x + c.w / 2) * d.S, y: (c.y + c.h / 2) * d.S }; });
+  await page.mouse.move(card2.x, card2.y); await hold(900); await page.mouse.up();
+  b = await choice(1); await page.mouse.click(b.x, b.y);
+  await waitMode('hanging'); await waitMode('room');
+  st = await state();
+  assert.deepEqual([st.hung, st.book], [13, 0], `${target}: hang from the book puts it back on the line`);
+
+  // delete a hung painting needs a hold; a tap on the trash does nothing
+  await openChooserOnHung(0);
+  b = await choice(2); await page.mouse.click(b.x, b.y);
+  assert.equal((await state()).hung, 13, 'a tap on the trash deletes nothing');
+  await page.mouse.move(b.x, b.y); await hold(1200); await page.mouse.up();
+  assert.equal((await state()).hung, 12, `${target}: holding the trash deletes a hung painting`);
+  // tapping outside closes the choices without doing anything
+  await openChooserOnHung(0);
+  await page.mouse.click(10, 10);
+  assert.equal(await page.evaluate(() => window.__studio.chooser.isOpen()), false, 'a tap outside closes the choices');
+  assert.equal((await state()).hung, 12);
+
+  // the book survives a reload (put one back in it first)
+  await openChooserOnHung(1);
+  b = await choice(1); await page.mouse.click(b.x, b.y);
+  await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+  await page.waitForTimeout(300);
+  await page.reload();
+  await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room after reload');
+  st = await state();
+  assert.deepEqual([st.hung, st.book], [11, 1], `${target}: the book survives a reload`);
+
+  // tapping a hung painting opens it on the easel to paint on (the bare easel gives way, nothing is duplicated)
+  const spotOf = async (i) => {
+    const pos = await page.evaluate((i) => { const w = window.__studio, d = w.debug(), r = w.activity('painting').room.slotRect(i, d.anchors.clothesline); return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }, i);
+    await page.evaluate((x) => window.__studio.panTo(x), pos.x);
+    await page.waitForTimeout(900);
+    return page.evaluate((p) => { const d = window.__studio.debug(); return { x: (p.x * d.view.z + d.view.oy * 0 + d.view.ox) * d.S, y: (p.y * d.view.z + d.view.oy) * d.S }; }, pos);
+  };
+  const pos0 = await spotOf(0);
+  await page.mouse.click(pos0.x, pos0.y);
+  await waitMode('painting');
+  st = await state();
+  assert.deepEqual([st.hung, st.book], [10, 1], `${target}: a tapped hung painting moves to the easel`);
+  assert.deepEqual(await page.evaluate(() => { const c = window.__studio.activity('painting')._state().current; return [c.w, c.h]; }), [6, 4], 'it keeps its own size');
+  await page.keyboard.press('Escape');
+  await waitMode('room');
+  // the same from the book: the easel's painting takes its place there
+  await page.evaluate(() => window.__studio.panTo(534));
+  await page.waitForTimeout(1000);
+  const bs3 = await page.evaluate(() => { const d = window.__studio.debug(), b = d.anchors.book; return { x: ((b.x + b.w / 2) * d.view.z + d.view.ox) * d.S, y: ((b.y + b.h / 2) * d.view.z + d.view.oy) * d.S }; });
+  await page.mouse.click(bs3.x, bs3.y);
+  await waitMode('painting'); await page.waitForTimeout(300);
+  const card3 = await page.evaluate(() => { const c = window.__studio.activity('painting')._book().layout.cards[0], d = window.__studio.debug(); return { x: (c.x + c.w / 2) * d.S, y: (c.y + c.h / 2) * d.S }; });
+  await page.mouse.click(card3.x, card3.y);
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => window.__studio.activity('painting')._state().inBook), false, `${target}: tapping a card in the book opens it on the easel`);
+  assert.deepEqual([(await state()).hung, (await state()).book], [10, 1], 'the easel painting went into the book in its place');
+  assert.deepEqual(errors, [], `${target}: no console errors`);
+  await ctx.close();
+  console.log(`ok  ${target} full line and the book`);
+}
 // Pull-out paper, zoom and scroll, undo, wipe, and a tall painting hanging, on a phone.
 for (const target of targets) {
   const errors = [];
@@ -158,6 +312,7 @@ for (const target of targets) {
   let s = await st();
   assert.deepEqual([s.w, s.h], [s.natural.w, s.natural.h], `${target}: a fresh painting is the default size`);
   assert.equal(s.tabs, 0, 'no tabs while the paper fills the screen');
+  assert.equal(await page.evaluate(() => window.__studio.activity('painting')._state().peek) >= 3, true, 'edge arrows show instead');
   const startCell = s.view.cell;
   // paint a stroke
   await page.mouse.move(100, 200); await page.mouse.down();

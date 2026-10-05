@@ -107,9 +107,9 @@ so) or **proposed** (a default picked, awaiting the user).
   only). Reason: the user's choice. Relaxes the whole-number rule for this one case.
 - [confirmed] No grid dots at all: the switch, the saved `grid` flag and the motion
   flash are removed (user 2026-10-05).
-- [proposed] Undo is multi-step (30), covers strokes, wipes and paper size changes,
-  and is not saved. Reason: the user asked for undo; a stack is no harder for a child
-  than one step. Wipe-only undo is the alternative.
+- [confirmed] Undo is multi-step (30), covers strokes, wipes and paper size changes,
+  and is not saved (user likes it, 2026-10-05). Reason: a stack is no harder for a child
+  than one step.
 - [confirmed] Paper can be shrunk as well as grown, by pushing the edge tabs in,
   but only through bare paper (never paint). The tabs are big and act like a
   joystick (hold to keep going). Reason: swiping to the screen edge was hard on a
@@ -139,6 +139,36 @@ so) or **proposed** (a default picked, awaiting the user).
   come from `src/art/palette.js`. Enforced by a test. Reason: the art code is
   full of one-off shades that would make a single palette file useless.
 
+- [confirmed] When the clothesline is full, new paintings go into a book that is a room
+  object you tap like the easel; nothing is dropped any more. Long-press on a hung
+  painting offers save, delete or move to the book instead of saving at once; the book
+  has the same options with hang instead of move (user, 2026-10-05).
+- [proposed] The book is a big book standing on the floor left of the easel, and its
+  page is a full-screen scrolling grid of small cards (door top-left to leave).
+  Reason: the easel's left side was free floor; the same "an object takes the whole
+  screen" rule as painting. It is a view of the painting activity, not a second one.
+- [proposed] The long-press choices are three wooden picture buttons under the held
+  painting with the rest of the screen dimmed (save arrow, book, trash; peg for hang).
+  Reason: no words, big targets, same look as the tray.
+- [proposed] Delete has no undo; instead the trash must be held about 0.9 s (red water
+  rises), like the bucket. A tap only makes Sadie say to hold it. Reason: the same
+  gesture the child already learned; a timed undo would need reading or noticing a toast.
+- [proposed] Hang from the book while the line is full: the peg is dimmed and Sadie says
+  the line is full; nothing moves. Alternative: swap with a painting on the line.
+- [proposed] The book has no limit and `book` is an optional field of the painting save
+  (version stays 2). Reason: no data is ever dropped; old saves load with an empty book.
+  Risk: one storage record grows with it (see saving.md "Not built yet").
+
+- [confirmed] Tapping a hung painting (examples included) opens it on the easel to paint on;
+  holding it shows a big filling ring centered on the touch, wide enough that a large finger cannot cover it; the easel shows edge arrows at the
+  default zoom so the child knows the paper can be resized (user, 2026-10-05).
+- [proposed] Opening a painting swaps it with the one on the easel (same place on the line or
+  in the book; a bare easel just gives way). Reason: nothing is ever lost. Alternative: ask,
+  or always send the easel painting to the end of the line.
+- [proposed] The edge arrows are small tabs on the screen edges that glide out to the table
+  view when pressed (not a pull that starts at once). Reason: simplest for a child; the real
+  tabs then do the pulling.
+
 ## Open questions
 
 
@@ -150,5 +180,9 @@ so) or **proposed** (a default picked, awaiting the user).
 - How will the app be distributed later? (For now it runs as a claude.ai
   artifact.)
 - Parent-only area: none for now. Revisit if one is ever needed.
+
+- Should the book ever have a limit, pages or sorting (by date, by color)? Today it is one
+  endless scrolling grid, oldest first.
+- Should hanging from the book with a full line offer to swap with one on the line?
 
 The full checklist is in [engineering.md](engineering.md).

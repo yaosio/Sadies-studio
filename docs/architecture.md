@@ -13,6 +13,7 @@ src/main.js             boot: wires store, sound, speech and world
 src/engine/             view (integer scale), camera math, small utils
 src/art/                palette.js (the only palette), px.js (pixel toolkit), Sadie, effects
 src/world/              world.js (camera, input, transitions, Sadie), speech, effects, lines
+src/ui/                 chooser.js (the picture-only long-press choices, shared by room and book)
 src/audio/              sound.js (synthesized, no audio files)
 src/save/               store.js, migrate.js (versions), codec.js (paintings as text)
 src/rooms/<room>/       room.js (data), art.js (drawn once), geometry.js, lines.js, README
@@ -33,16 +34,17 @@ rectangle with an action: `{ activity: 'painting' }`, `{ say: 'window' }` or
 ## Activities are modules
 
 `src/activities/registry.js` maps an id to a factory `create(env)`.
-`env` is `{ store, sound, say(text), exit(), hang(), reducedMotion, now() }`.
+`env` is `{ store, sound, say(text), exit(), hang(src), reducedMotion, now() }`.
 The object returned has:
 
 - `load(saved)`, `save()`: its own saved state (see [saving.md](saving.md))
-- `resize(W, H, u)`, `prepare()`: canvas size changed; before the glide-in
+- `resize(W, H, u)`, `prepare(view)`: canvas size changed; before the glide-in
+  (`view` picks a part of the activity, e.g. `'book'`; a room hotspot carries it)
 - `open()`, `close()`: the world gives it the whole screen, or takes it back
 - `pointerDown/Move/Up(x, y)`, `key(e)`, `update(dt)`, `draw(ctx, now)`
 - `room`: what it shows in the room (`drawBoard`, `drawLine`, `hit`, `tap`,
-  `slotRect`, `pictureRect`, `pictureBox`)
-- `beginHang()`, `finishHang()`, `snapshot()`, `paperRect()`, `boardFit()`:
+  `slotRect`, `landing`, `longPress`, `choose`)
+- `beginHang()`, `beginHangFromBook(i)`, `finishHang()`, `snapshot()`, `paperRect()`, `boardFit()`:
   the paper-activity transitions (glide in, hang up)
 
 The glide-in and hang-up are written for activities that have a sheet of paper

@@ -19,10 +19,12 @@ export const studioRoom = {
   anchors: {
     board: { x: EX - BOARD_W / 2, fy: -196, w: BOARD_W, h: BOARD_H }, // easel paper
     clothesline: { x: 545, fy: -262 },
+    book: { x: 462, fy: -97, w: 144, h: 108 }, // what the camera glides to for the book of paintings
     sadie: { x: EX + 12, fy: -234 },
   },
   hotspots: [
     { id: 'easel', x: 674, fy: -220, w: 172, h: 228, action: { activity: 'painting' } },
+    { id: 'book', x: 494, fy: -98, w: 80, h: 102, action: { activity: 'painting', view: 'book', anchor: 'book' } },
     { id: 'window', x: 440, fy: -224, w: 200, h: 132, action: { say: 'window' } },
     { id: 'plant', x: 420, fy: -108, w: 52, h: 108, action: { say: 'plant' } },
     { id: 'shelf', x: 878, fy: -210, w: 116, h: 210, action: { say: 'shelf' } },

@@ -11,5 +11,5 @@ room) drawn as a dollhouse cutaway, 1724 room pixels wide.
 
 The side rooms are "in progress" placeholders (ladders, paint cans, signs). To
 make one real, give it its own room data and a way to switch rooms in
-`src/world/world.js`. The easel board and clothesline positions are anchors here;
+`src/world/world.js`. The easel board, clothesline and book positions are anchors here (the book is a floor object, drawn in `art.js`, a hotspot that opens the painting activity's book view);
 the painting activity draws their contents.
