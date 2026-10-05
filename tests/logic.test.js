@@ -208,6 +208,15 @@ test('thumbnails keep thin lines and letterbox', () => {
   assert.equal(f.length, 36 * 27);
 });
 
+test('easel board shows just the painted part of a big paper', () => {
+  const big = newPainting(2000, 2000);
+  for (let x = 900; x < 980; x++) for (let y = 1000; y < 1060; y++) big.set(x, y, 3);
+  const f = fitted(big, 36, 27), n = f.filter((c) => c === 3).length;
+  assert.ok(n > 36 * 27 * 0.5, 'the paint fills most of the board, not a speck');
+  big.set(1500, 1500, 3); // the board follows live changes
+  assert.ok(fitted(big, 36, 27).filter((c) => c === 3).length < n, 'a far-off mark shrinks the view');
+});
+
 test('big paintings: trimmed to their paint, never under 1/8, rolled up where cut off', () => {
   const small = newPainting(72, 54);
   assert.deepEqual(viewWindow(small, 36), { x0: 0, y0: 0, w: 72, h: 54, rolledR: false, rolledB: false }, 'a normal paper shows whole');

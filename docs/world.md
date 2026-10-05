@@ -24,7 +24,7 @@ make Sadie say a short line and are placeholders for later activities
 
 ## Easel and the camera
 
-Tapping the easel makes the camera **glide in** (zoom) to the easel board, and
+Only the easel itself is tappable (its drawn pixels plus 3 px; `onFront` in `world.js`), not the box round it, so a painting hung behind it can be tapped wherever it shows. Tapping the easel makes the camera **glide in** (zoom) to the easel board, and
 the paper then grows to take the whole screen (see [painting.md](painting.md)).
 Leaving reverses it. Tapping Sadie pets her. Escape or the door exits. The
 camera never snaps (it does with reduced motion). Hanging a painting flies it

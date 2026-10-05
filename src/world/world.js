@@ -27,7 +27,7 @@ export function createWorld(opts) {
   const c = cv.getContext('2d');
 
   let dpr = 1, S = 1, W = 320, H = 360, u = 1;
-  let geom = null, bitmap = null, front = null, anchors = null, hotspots = [];
+  let geom = null, bitmap = null, front = null, anchors = null, hotspots = [], frontPx = null;
   const cam = { x: 0, y: 0, z: 1, tx: 0 }; // x, y: top-left of the view in room pixels; tx: where x is heading
   let view = { ox: 0, oy: 0, z: 1 };
   let mode = 'room'; // room | entering | painting | leaving | hanging
@@ -66,7 +66,7 @@ export function createWorld(opts) {
     u = uiUnit(S, dpr);
 
     const g = room.geometry(Math.max(room.minHeight, H));
-    if (!geom || geom.WH !== g.WH) { bitmap = room.paint(g); front = room.paintFront ? room.paintFront(g) : null; }
+    if (!geom || geom.WH !== g.WH) { bitmap = room.paint(g); front = room.paintFront ? room.paintFront(g) : null; frontPx = null; }
     geom = g;
     const at = (a) => ({ ...a, y: g.F + a.fy });
     anchors = { board: at(room.anchors.board), clothesline: at(room.anchors.clothesline), sadie: at(room.anchors.sadie), book: at(room.anchors.book) };
@@ -154,15 +154,26 @@ export function createWorld(opts) {
   const toRoom = (sx, sy) => [(sx - view.ox) / view.z, (sy - view.oy) / view.z];
   const inBox = (x, y, r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
   const hitSadie = (sx, sy) => { const [wx, wy] = toRoom(sx, sy); return wx >= anchors.sadie.x + 6 && wx < anchors.sadie.x + 40 && wy >= anchors.sadie.y + 2 && wy < anchors.sadie.y + 34; };
+  // True when (wx, wy) is on the easel itself (within a few pixels), not the air between its legs.
+  // The easel's box is bigger than the easel, and a painting hung behind it must win those gaps.
+  function onFront(wx, wy) {
+    if (!front) return true;
+    if (!frontPx) frontPx = front.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, front.width, front.height);
+    const { data, width, height } = frontPx, R = 3;
+    for (let y = Math.max(0, Math.floor(wy) - R); y <= Math.min(height - 1, Math.floor(wy) + R); y++)
+      for (let x = Math.max(0, Math.floor(wx) - R); x <= Math.min(width - 1, Math.floor(wx) + R); x++) if (data[(y * width + x) * 4 + 3] > 0) return true;
+    return false;
+  }
+  const hitBox = (h, wx, wy) => inBox(wx, wy, h) && (h.id !== 'easel' || onFront(wx, wy));
   function hitRoom(sx, sy) {
     const [wx, wy] = toRoom(sx, sy);
     // Hung paintings are on the wall: the easel (and Sadie) are in front of them.
-    for (const h of hotspots) if (h.action.activity && inBox(wx, wy, h)) return h;
+    for (const h of hotspots) if (h.action.activity && hitBox(h, wx, wy)) return h;
     for (const id in activities) {
       const i = activities[id].room.hit(wx, wy, anchors.clothesline);
       if (i >= 0) return { art: activities[id], index: i };
     }
-    for (const h of hotspots) if (inBox(wx, wy, h)) return h;
+    for (const h of hotspots) if (hitBox(h, wx, wy)) return h;
     return null;
   }
   const maxCamX = () => clampCamX(1e9, 1, W, room.width);

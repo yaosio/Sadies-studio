@@ -142,7 +142,7 @@ saved painting or the PNG. A very big paper (more than 8 cells to an art pixel, 
 anything over about 290 cells wide) hangs trimmed to the box round its paint, never
 shown smaller than 8 cells to a pixel; if the paint is still bigger, a wide one also
 rolls up its right edge (a slimmer roll between the frames) and shows its top left.
-The same rule makes the book's cards. Code: `viewWindow` in `thumb.js`, `hangShape` in
+The same rule makes the book's cards, and the easel board in the room (trimmed only, no roll, and recomputed as you paint). Code: `viewWindow` in `thumb.js`, `hangShape` in
 `clothesline-art.js`, `thumbFor` in `book-art.js`, the roll in `roll-art.js`. The first time the app opens, two example paintings hang there.
 
 **Tap a hung painting** (the examples too) to paint on it: the camera glides to the easel
