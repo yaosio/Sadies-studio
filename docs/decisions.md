@@ -168,6 +168,13 @@ so) or **proposed** (a default picked, awaiting the user).
 - [proposed] The edge arrows are small tabs on the screen edges that glide out to the table
   view when pressed (not a pull that starts at once). Reason: simplest for a child; the real
   tabs then do the pulling.
+- [done] `main` is protected by a GitHub ruleset "Protect main": changes
+  need a pull request, force-pushes and deletion are blocked, no required
+  human reviews (one human), repo admin can bypass. No CI exists yet, so no
+  status check is required; add the real check name once a workflow has run.
+  Reason: stops accidental direct pushes and history rewrites. Change it at
+  GitHub > Settings > Rules > Rulesets. (Sessions cannot change repo
+  settings; the user applied it on 2026-10-05.)
 
 ## Open questions
 
