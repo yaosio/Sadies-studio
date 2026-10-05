@@ -184,8 +184,9 @@ so) or **proposed** (a default picked, awaiting the user).
   tabs then do the pulling.
 - [done] `main` is protected by a GitHub ruleset "Protect main": changes
   need a pull request, force-pushes and deletion are blocked, no required
-  human reviews (one human), repo admin can bypass. No CI exists yet, so no
-  status check is required; add the real check name once a workflow has run.
+  human reviews (one human), repo admin can bypass. The `check` workflow now
+  exists; whether the ruleset requires it is for the user to confirm at GitHub >
+  Settings > Rules (a session cannot see rulesets).
   Reason: stops accidental direct pushes and history rewrites. Change it at
   GitHub > Settings > Rules > Rulesets. (Sessions cannot change repo
   settings; the user applied it on 2026-10-05.)
@@ -223,18 +224,42 @@ so) or **proposed** (a default picked, awaiting the user).
 ## Open questions
 
 
-- Should the browser be asked to keep the data permanently
-  (`navigator.storage.persist()`)? Some browsers show a prompt, which a child
-  must never see, so it is not asked for yet.
 - Which learning activity comes first after painting? (Not known yet;
   focus is painting.)
-- How will the app be distributed later? (For now it runs as a claude.ai
-  artifact.)
+- Which license, if any? None chosen (user, 2026-10-05: not sure yet); with no LICENSE file all rights stay with the owner. Pixelify Sans keeps its own OFL license in `assets/fonts/LICENSE.txt`.
+- Automatic backup to Google Drive: possible from the GitHub Pages site, but it adds a
+  Google script, a sign-in and a parent screen, which break rule 10 as written. Parked
+  until the user decides; findings in the research note (see saving.md).
 - Parent-only area: none for now. Revisit if one is ever needed.
 
 - Should the book ever have a limit, pages or sorting (by date, by color)? Today it is one
   endless scrolling grid, oldest first.
 - Should hanging from the book with a full line offer to swap with one on the line?
 - Which stamps next, and should a drawer grow a second page after about 8?
+
+## Review fixes (2026-10-05, from the full project review)
+
+- [proposed] The app is served from GitHub Pages (`main`, user, 2026-10-05) as well as the
+  claude.ai artifacts. Static only: no server, no tracking.
+- [proposed] A saved record written by a newer version is never overwritten: the app starts
+  without it and refuses to write over it. Reason: an old copy of the app would otherwise read
+  it as empty and destroy real paintings.
+- [proposed] When saving fails (storage full or blocked) Sadie says one short line, once per
+  streak of failures. No dialogs. Reason: a child must never lose a painting without anyone
+  knowing, and nothing may need reading.
+- [proposed] The browser is asked silently to keep the data (`navigator.storage.persist()`),
+  except in Firefox, which shows a prompt a child must never see.
+- [proposed] Importing a file is limited: 50 MB, 300 paintings, 100 million painted cells.
+  A bigger file is refused with a Sadie line. Reason: a wrong or crafted file must not freeze
+  a phone. Real backups are far below this.
+- [proposed] Dev tools are pinned in `package.json` and `package-lock.json` (eslint, Playwright);
+  CI installs with `npm ci`. Linting (`npm run lint`, `eslint.config.js`) is part of `npm run check`
+  and checks for mistakes only, no style. Nothing here ships to the child.
+- [proposed] GitHub Actions are pinned to commit hashes; Dependabot proposes updates monthly.
+- [proposed] WebKit (Safari's engine) runs a short advisory check in CI (`npm run engines`); it
+  reports but does not block a merge. Reason: iPhones are likely the main device and only Chromium
+  was tested. The user's phone remains the real test.
+- Touch areas are never under 44 CSS pixels (tray items, the door, the book buttons), enforced
+  by a test; drawn sizes are unchanged.
 
 The full checklist is in [engineering.md](engineering.md).

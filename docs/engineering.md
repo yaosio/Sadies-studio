@@ -43,8 +43,10 @@ Raise the relevant ones before building. Log each answer in
 
 ## Saved data
 
-- Storage is browser local storage; it can be cleared by the browser or lost
-  with the device. Size limits apply. (default: versioned, see saving.md)
+- Storage is the browser's IndexedDB; it can be cleared by the browser or lost
+  with the device. Size limits apply. (default: versioned, see saving.md) A failed
+  save is told to the child by Sadie in one line; the browser is asked to keep the data;
+  the manual backup file is the safety net. (proposed)
 - Any user can save a painting out as an image file. (done)
 - No parent-only area for now. (done)
 

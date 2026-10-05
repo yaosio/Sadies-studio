@@ -8,7 +8,7 @@ import { PAPER, WOOD_TRIM, FRAME, PAGE } from '../art/palette.js';
 import { sadieSprite, SADIE_W, SADIE_H, SADIE_PAD } from '../art/sadie.js';
 import { CHEVRON_LEFT, CHEVRON_RIGHT } from '../art/effects.js';
 import { pick, lerp, lerpRect, ease } from '../engine/util.js';
-import { chooseScale, uiUnit } from '../engine/view.js';
+import { chooseScale, uiUnit, touchSize } from '../engine/view.js';
 import { clampCamX } from '../engine/camera.js';
 import { createEffects } from './effects.js';
 import { createChooser } from '../ui/chooser.js';
@@ -42,6 +42,8 @@ export function createWorld(opts) {
   const now = () => performance.now();
   function say(text, ms) { speech.say(text, ms, now()); sadie.flick = 1; }
 
+  if (store.onFail) store.onFail(() => say(WORLD_LINES.saveFail, 7000));
+
   /* ---------------- activities ---------------- */
   const env = {
     store, sound, reducedMotion: RM, now, say,
@@ -71,7 +73,7 @@ export function createWorld(opts) {
     const at = (a) => ({ ...a, y: g.F + a.fy });
     anchors = { board: at(room.anchors.board), clothesline: at(room.anchors.clothesline), sadie: at(room.anchors.sadie), book: at(room.anchors.book) };
     hotspots = room.hotspots.map((h) => ({ ...h, y: h.fy == null ? 0 : g.F + h.fy, h: h.h == null ? g.WH : h.h }));
-    for (const id in activities) activities[id].resize(W, H, u);
+    for (const id in activities) activities[id].resize(W, H, u, touchSize(S, dpr));
     chooser.close(); // its place on screen is stale
 
     if (mode === 'room') { cam.y = roomY(); cam.z = 1; cam.tx = clampCamX(cam.tx, 1, W, room.width); cam.x = cam.tx; }

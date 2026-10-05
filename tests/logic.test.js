@@ -13,7 +13,7 @@ import { fitRect, resample, fitted, viewWindow } from '../src/activities/paintin
 import { layoutTray, ITEM_IDS, DRAWER_IDS, itemsFor } from '../src/activities/painting/tray.js';
 import { STAMPS, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE, stampArt } from '../src/activities/painting/stamps.js';
 import { PAINT } from '../src/art/palette.js';
-import { chooseScale, uiUnit } from '../src/engine/view.js';
+import { chooseScale, uiUnit, touchSize } from '../src/engine/view.js';
 import { clampCamX } from '../src/engine/camera.js';
 import { studioRoom } from '../src/rooms/studio/room.js';
 import { STUDIO_LINES } from '../src/rooms/studio/lines.js';
@@ -475,4 +475,60 @@ test('backup: everything in one file, and a file merges into what is here', asyn
   assert.ok(parseBackup(JSON.stringify(fixture('save-v1.json'))));
   for (const bad of ['', 'nope', '[]', '{"a":1}', '{"version":2,"activities":{}}']) assert.equal(parseBackup(bad), null);
   assert.deepEqual(parseBackup(JSON.stringify({ version: 2, activities: { painting: { current: { w: 0 }, hung: [a, 5], book: 'x' } } })), { current: null, hung: [a], book: [] });
+});
+
+test('storage: a newer app\'s records are never overwritten, and failed saves are noticed', async () => {
+  // IndexedDB holds a record from a newer version: the app starts empty but must not write over it
+  const newer = fakeBackend([{ id: 'painting', version: CURRENT_VERSION + 1, state: { future: true } }]);
+  let told = 0;
+  const s = await openStore(newer, memory(), 10000);
+  s.onFail(() => told++);
+  assert.equal(s.isLocked(), true);
+  s.set('painting', { a: 1 }); s.flush();
+  assert.deepEqual(newer.written, {}, 'the newer record is left alone');
+  assert.equal(told, 1);
+  // localStorage holds a newer save: same rule
+  const raw = JSON.stringify({ version: CURRENT_VERSION + 1, activities: { painting: { future: true } } });
+  const mem = memory({ [KEY]: raw }), l = createStore(mem, 10000);
+  l.set('painting', { a: 1 }); l.flush();
+  assert.equal(mem.getItem(KEY), raw);
+  // a database that refuses writes: noticed once per streak, quiet again after a good write
+  let bad = true, calls = 0;
+  const flaky = { readAll: async () => [], put: () => (bad ? Promise.reject(new Error('full')) : Promise.resolve()) };
+  const f = await openStore(flaky, memory(), 10000);
+  f.onFail(() => calls++);
+  f.set('painting', { a: 1 }); f.flush(); await new Promise((r) => setTimeout(r, 5));
+  f.set('painting', { a: 2 }); f.flush(); await new Promise((r) => setTimeout(r, 5));
+  assert.equal(calls, 1, 'told once, not on every stroke');
+  assert.equal(f.isFailing(), true);
+  bad = false; f.set('painting', { a: 3 }); f.flush(); await new Promise((r) => setTimeout(r, 5));
+  assert.equal(f.isFailing(), false);
+  // a localStorage that throws
+  const full = { getItem: () => null, setItem: () => { throw new Error('quota'); } };
+  let q = 0; const g = createStore(full, 10000); g.onFail(() => q++);
+  g.set('x', 1); g.flush(); assert.equal(q, 1);
+});
+
+test('backup import: oversize or crazy files are refused before anything is decoded', async () => {
+  const { parseBackup, MAX_PAINTINGS } = await import('../src/save/backup.js');
+  const { paintedCells } = await import('../src/save/codec.js');
+  assert.equal(paintedCells({ d: 'A5B3C' }), 4);
+  const save = (p) => JSON.stringify({ version: 2, activities: { painting: p } });
+  const tiny = { w: 5, h: 3, d: 'B3C4D' };
+  assert.ok(parseBackup(save({ current: null, hung: [], book: Array(MAX_PAINTINGS).fill(tiny) })));
+  assert.equal(parseBackup(save({ current: null, hung: [], book: Array(MAX_PAINTINGS + 1).fill(tiny) })), null);
+  const heavy = { w: 2048, h: 2048, d: 'B4194304' };
+  assert.equal(parseBackup(save({ current: null, hung: [], book: Array(30).fill(heavy) })), null, '30 full big papers is more than a phone should decode');
+  assert.ok(parseBackup(save({ current: null, hung: [], book: Array(5).fill(heavy) })));
+});
+
+test('touch targets: tray items, the door and the book buttons are at least 44 CSS pixels at every screen size', () => {
+  for (const dpr of [1, 1.5, 2, 3]) for (const [cw, ch] of [[390, 780], [780, 390], [820, 1180], [1180, 820], [1440, 900]]) {
+    const S = chooseScale(Math.round(cw * dpr), Math.round(ch * dpr));
+    const u = uiUnit(S, dpr), touch = touchSize(S, dpr), css = (px) => (px * S) / dpr;
+    const t = layoutTray(Math.ceil(cw * dpr / S), Math.ceil(ch * dpr / S), u, 'paints', touch);
+    for (const it of t.items) assert.ok(css(Math.min(it.hit.w, it.hit.h)) >= 43.5, `S=${S} dpr=${dpr}: ${it.k} touch area ${css(Math.min(it.hit.w, it.hit.h)).toFixed(0)} CSS px`);
+    assert.ok(css(Math.min(t.back.w, t.back.h)) >= 43.5, `S=${S} dpr=${dpr}: door`);
+    assert.ok(css(Math.max(26 * u, touch)) >= 43.5, `S=${S} dpr=${dpr}: book buttons`);
+  }
 });

@@ -15,3 +15,9 @@ export function chooseScale(dw, dh) {
 export function uiUnit(S, dpr) {
   return Math.max(1, Math.round((44 * dpr) / (22 * S)));
 }
+
+// Canvas pixels that make 44 CSS pixels. Because the art unit is a whole number, drawn buttons can come out a
+// little under 44 CSS pixels on some screens; their touch area is never smaller than this.
+export function touchSize(S, dpr) {
+  return Math.ceil((44 * dpr) / S);
+}

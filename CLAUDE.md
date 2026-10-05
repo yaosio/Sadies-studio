@@ -23,7 +23,7 @@ Node 22 and Playwright (dev only) run the checks.
 
 - Run: `npm start`, then open http://localhost:8000/index.html (add `?still`
   to freeze ambient motion).
-- Test: `npm test` (logic, no browser).
+- Lint: `npm run lint`. Test: `npm test` (logic, no browser).
 - Smoke test (run before finishing any change): `npm run smoke`.
 - Screenshots: `npm run visual` (`npm run visual:update` after an intended look change).
 - Everything: `npm run check`. Single-file build for artifacts: `npm run build`

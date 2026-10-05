@@ -63,3 +63,12 @@ export function decodePainting(s) {
   }
   return p;
 }
+
+// How many painted cells a saved painting holds, counted from its text alone (bare paper and
+// junk cost nothing). Decoding costs about this much, so it bounds what an import may ask for.
+export function paintedCells(s) {
+  if (!s || typeof s.d !== 'string') return 0;
+  let n = 0;
+  for (const m of s.d.matchAll(/([B-K])(\d*)/g)) n += m[2] ? parseInt(m[2], 10) : 1;
+  return n;
+}

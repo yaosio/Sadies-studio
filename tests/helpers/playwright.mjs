@@ -11,6 +11,7 @@ export async function loadPlaywright() {
 
 export async function launch(extraArgs = []) {
   const pw = await loadPlaywright();
-  const chromium = pw.chromium || pw.default.chromium;
-  return chromium.launch({ args: ['--use-gl=swiftshader', '--no-sandbox', ...extraArgs] });
+  const engines = pw.chromium ? pw : pw.default;
+  const name = process.env.BROWSER || 'chromium'; // chromium (default), webkit or firefox: see tests/engines.mjs
+  return name === 'chromium' ? engines.chromium.launch({ args: ['--use-gl=swiftshader', '--no-sandbox', ...extraArgs] }) : engines[name].launch();
 }

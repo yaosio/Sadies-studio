@@ -36,6 +36,7 @@ export const PAINTING_LINES = {
   backingUp: 'Packing every painting into one file. Keep it safe.',
   restoring: 'Let me see what is in that file.',
   restoredNone: 'I already have all of those. Nothing new.',
+  restoredBig: 'That file is far too big for me. I cannot carry it.',
   restoredBad: 'That file is not mine. I cannot read it.',
   deleteHint: 'Hold the trash can down to throw it away.',
   bookOpen: ['The book. Paintings sleep here when the line is full.', 'All the paintings that ran out of string.'],
