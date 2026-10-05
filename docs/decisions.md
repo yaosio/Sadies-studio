@@ -216,9 +216,9 @@ so) or **proposed** (a default picked, awaiting the user).
   Backup stays manual (a parent saves a file), not automatic.
 - [confirmed] The backup is not a picture with hidden data: a recompressed picture could silently
   lose the data while looking like a good backup (user, 2026-10-05).
-- [proposed] The backup is a zip holding `backup.json` (share sheet on phones, download elsewhere),
-  because phone share sheets refused JSON and the user preferred zip (room for more files).
-  Falls back to download if the sheet refuses zip too.
+- [confirmed] The backup is a plain `.txt` file holding the backup JSON: on the user's phone the share
+  sheet takes text, PDF, CSV and HTML but not JSON or zip (user tested, 2026-10-05). Text is never
+  recompressed. Shared on phones, downloaded elsewhere.
 
 ## Open questions
 

@@ -1,7 +1,6 @@
 // Saving out: a painting as a PNG (long-press a hung painting in the room), or everything as one file
 // (from the book's page).
 import { PAPER, PAINT } from '../../art/palette.js';
-import { makeZip, readZip } from '../../save/zip.js';
 
 const TARGET_SIDE = 1600; // the picture is about this many pixels on its long side
 
@@ -53,24 +52,16 @@ export async function savePng(p, filename) {
   return blob ? saveFile(blob, filename) : false;
 }
 
-// Everything in one zip (see save/backup.js): backup.json inside, with room for more files later.
-// Zip is a type phone share sheets accept (JSON is not), and a zip is checked on the way back in, so a
-// damaged one is refused instead of looking like a good backup.
-export const saveBackupZip = (text, filename) => saveFile(new Blob([makeZip([{ name: 'backup.json', data: text }])], { type: 'application/zip' }), filename);
+// Everything in one text file (see save/backup.js): the backup JSON as plain text. Phone share sheets refuse
+// a .json file but accept plain text, and text is never recompressed, so it cannot be damaged on the way.
+export const saveBackupText = (text, filename) => saveFile(new Blob([text], { type: 'text/plain' }), filename);
 
-// Asks for a file (the system picker) and gives the backup text, or null if they cancel. Must run from a tap, or the browser will not open the picker.
+// Asks for a file (the system picker) and gives its text, or null if they cancel. Must run from a tap, or the browser will not open the picker.
 export function pickFile() {
   return new Promise((done) => {
     const input = document.createElement('input');
-    input.type = 'file'; input.accept = '.zip,application/zip,.json,application/json,text/plain'; input.style.display = 'none';
-    input.onchange = async () => {
-      const f = input.files && input.files[0]; input.remove();
-      try {
-        if (!f) return done(null);
-        const bytes = new Uint8Array(await f.arrayBuffer()), zip = readZip(bytes);
-        done(zip ? zip['backup.json'] ?? '' : new TextDecoder().decode(bytes)); // a zip's backup.json, or a plain JSON file
-      } catch (e) { done(null); }
-    };
+    input.type = 'file'; input.accept = '.txt,text/plain,.json,application/json'; input.style.display = 'none';
+    input.onchange = async () => { const f = input.files && input.files[0]; input.remove(); try { done(f ? await f.text() : null); } catch (e) { done(null); } };
     input.addEventListener('cancel', () => { input.remove(); done(null); });
     document.body.appendChild(input);
     input.click();

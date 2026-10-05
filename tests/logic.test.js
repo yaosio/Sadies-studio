@@ -462,7 +462,7 @@ test('backup: everything in one file, and a file merges into what is here', asyn
   const { buildBackup, backupName, parseBackup, newFromBackup } = await import('../src/save/backup.js');
   const a = { w: 3, h: 2, d: 'B2A4' }, b = { w: 3, h: 2, d: 'C2A4' }, c = { w: 3, h: 2, d: 'D2A4' };
   const file = JSON.stringify(buildBackup({ painting: { current: c, hung: [a], book: [b] }, music: { songs: [1] } }, new Date('2026-10-05T12:00:00Z')));
-  assert.equal(backupName(new Date('2026-10-05T12:00:00Z')), 'sadies-studio-backup-2026-10-05.zip');
+  assert.equal(backupName(new Date('2026-10-05T12:00:00Z')), 'sadies-studio-backup-2026-10-05.txt');
   assert.deepEqual(JSON.parse(file).activities.music, { songs: [1] }, 'other activities ride along');
   const got = parseBackup(file);
   assert.deepEqual(got, { current: c, hung: [a], book: [b] });
@@ -475,17 +475,4 @@ test('backup: everything in one file, and a file merges into what is here', asyn
   assert.ok(parseBackup(JSON.stringify(fixture('save-v1.json'))));
   for (const bad of ['', 'nope', '[]', '{"a":1}', '{"version":2,"activities":{}}']) assert.equal(parseBackup(bad), null);
   assert.deepEqual(parseBackup(JSON.stringify({ version: 2, activities: { painting: { current: { w: 0 }, hung: [a, 5], book: 'x' } } })), { current: null, hung: [a], book: [] });
-});
-
-test('zip: files go in and come back, and the zip is readable by real tools', async () => {
-  const { makeZip, readZip } = await import('../src/save/zip.js');
-  const zip = makeZip([{ name: 'backup.json', data: '{"a":"wörld"}' }, { name: 'notes.txt', data: 'hi' }]);
-  assert.deepEqual(readZip(zip), { 'backup.json': '{"a":"wörld"}', 'notes.txt': 'hi' });
-  assert.equal(readZip(Uint8Array.from([1, 2, 3])), null);
-  const { execFileSync } = await import('node:child_process');
-  const { writeFileSync, mkdtempSync } = await import('node:fs');
-  const { tmpdir } = await import('node:os');
-  const f = join(mkdtempSync(join(tmpdir(), 'zip-')), 't.zip');
-  writeFileSync(f, zip);
-  try { assert.match(execFileSync('python3', ['-c', 'import zipfile,sys;z=zipfile.ZipFile(sys.argv[1]);print(z.testzip(),z.read("notes.txt").decode())', f]).toString(), /None hi/); } catch (e) { if (e.code !== 'ENOENT') throw e; }
 });
