@@ -46,4 +46,6 @@ chosen from window size and device pixel ratio (`src/engine/view.js`).
 ## Input
 
 One pointer model for mouse and touch (pointer events). Dragging the room
-pans it; a tap that does not move is a tap on an object. Never rely on hover.
+pans it and letting go with speed flicks it (speed measured over the last
+~100 ms; catching a flick stops it where it is). A tap that does not move is a
+tap on an object; holding on a hung painting saves it out (see saving.md). Never rely on hover.

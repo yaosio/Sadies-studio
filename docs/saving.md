@@ -34,6 +34,11 @@ data without both.
 
 ## Not built yet
 
-- Saving a painting out as an image file (decided: any user may). Needs a
-  place in the UI that is not a menu.
 - Backup or restore across devices.
+
+## Saving out
+
+Long-press (about 0.65 s) a hung painting in the room: sparkles, a sound, and
+the painting is offered as a PNG (`sadies-painting-N.png`, each cell a whole-number
+square, about 1600 px on the long side). Code: `src/activities/painting/export.js`.
+Inside an artifact the host shows its own confirmation (`downloads` capability).

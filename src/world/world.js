@@ -17,6 +17,7 @@ const GLIDE_SECONDS = 0.85;
 const HANG_SECONDS = 1.4;
 const FIT_MARGIN = 1.16; // the easel board fills this much less than the screen when glided to
 const IDLE_HINT_MS = 25000;
+const LONG_PRESS_MS = 650;
 
 // opts: { canvas, room, factories: { id: create(env) }, store, sound, speech, reducedMotion, still }
 export function createWorld(opts) {
@@ -133,7 +134,7 @@ export function createWorld(opts) {
     const [wx, wy] = toRoom(sx, sy);
     for (const id in activities) {
       const i = activities[id].room.hit(wx, wy, anchors.clothesline);
-      if (i >= 0) return { art: activities[id] };
+      if (i >= 0) return { art: activities[id], index: i };
     }
     for (const h of hotspots) if (inBox(wx, wy, h)) return h;
     return null;
@@ -148,7 +149,7 @@ export function createWorld(opts) {
   function petSadie() {
     sadie.hop = 5;
     fx.hearts(anchors.sadie.x + 26, anchors.sadie.y + 6, 3);
-    sound.play('mrrp');
+    sound.play('purr');
     say(pick(WORLD_LINES.sadie));
     sadie.blinkUntil = now() / 1000 + 0.5;
   }
@@ -168,6 +169,16 @@ export function createWorld(opts) {
     const line = room.lines[a.say];
     if (line) say(Array.isArray(line) ? pick(line) : line);
   }
+  // Holding a finger on a hung painting saves it out as a picture.
+  function longPress() {
+    const h = hitRoom(ptr.sx, ptr.sy);
+    if (!h || !h.art) return;
+    ptr.long = true;
+    const [wx, wy] = toRoom(ptr.sx, ptr.sy);
+    for (let k = 0; k < 3; k++) fx.sparkle(wx + (Math.random() - 0.5) * 24, wy + (Math.random() - 0.5) * 18);
+    sound.play('hang');
+    h.art.room.save(h.index);
+  }
   function updateCursor() {
     cv.style.cursor = mode === 'painting' ? 'crosshair' : mode === 'room' ? 'grab' : 'default';
   }
@@ -181,7 +192,10 @@ export function createWorld(opts) {
     const [sx, sy] = toLogical(e);
     lastInteract = now();
     if (mode === 'painting') activities[activeId].pointerDown(sx, sy);
-    else if (mode === 'room') { ptr = { sx, sy, camX: cam.tx, moved: false, lastX: sx, lastT: now(), v: 0 }; vel = 0; }
+    else if (mode === 'room') {
+      vel = 0; cam.tx = cam.x; // catching a flick stops it right where it is, no jump
+      ptr = { sx, sy, camX: cam.x, moved: false, downT: now(), long: false, samples: [{ t: now(), x: sx }] };
+    }
   }
   function onMove(e) {
     const [sx, sy] = toLogical(e);
@@ -202,9 +216,9 @@ export function createWorld(opts) {
       if (!ptr.moved && Math.abs(dx) + Math.abs(sy - ptr.sy) > 5) ptr.moved = true;
       if (ptr.moved) {
         cam.tx = clampCamX(ptr.camX - dx / cam.z, cam.z, W, room.width); cam.x = cam.tx;
-        const t = now(), dt = Math.max(0.008, (t - ptr.lastT) / 1000);
-        ptr.v = ptr.v * 0.5 + ((-(sx - ptr.lastX) / cam.z) / dt) * 0.5;
-        ptr.lastX = sx; ptr.lastT = t;
+        const t = now();
+        ptr.samples.push({ t, x: sx });
+        while (ptr.samples.length > 2 && t - ptr.samples[0].t > 120) ptr.samples.shift();
       }
     }
   }
@@ -214,10 +228,18 @@ export function createWorld(opts) {
     if (mode === 'painting') { activities[activeId].pointerUp(); return; }
     if (ptr) {
       const [sx, sy] = toLogical(e);
-      if (!ptr.moved) tapRoom(sx, sy);
-      else if (now() - ptr.lastT < 90) vel = clamp(ptr.v, -1400, 1400);
+      if (ptr.long) { /* a long press already did its thing */ }
+      else if (!ptr.moved) tapRoom(sx, sy);
+      else vel = flickVelocity(ptr);
       ptr = null;
     }
+  }
+  // Speed of the last ~100 ms of the drag, in room pixels per second. A finger
+  // that stopped before lifting leaves no flick.
+  function flickVelocity(p) {
+    const t = now(), last = p.samples[p.samples.length - 1], first = p.samples[0];
+    if (t - last.t > 80 || last.t - first.t < 16) return 0;
+    return clamp(-((last.x - first.x) / cam.z) / ((last.t - first.t) / 1000), -1800, 1800);
   }
   function onCancel(e) {
     if (e.pointerId !== ptrId) return;
@@ -251,9 +273,10 @@ export function createWorld(opts) {
     if (mode === 'painting') { activities[activeId].update(dt); return; }
     if (mode === 'room') {
       if (!ptr && Math.abs(vel) > 4) {
-        cam.tx = clampCamX(cam.tx + vel * dt, 1, W, room.width); vel *= Math.pow(0.03, dt);
+        cam.tx = clampCamX(cam.tx + vel * dt, 1, W, room.width); cam.x = cam.tx; vel *= Math.pow(0.03, dt);
         if (cam.tx <= 0 || cam.tx >= maxCamX()) vel = 0;
       }
+      if (ptr && !ptr.moved && !ptr.long && now() - ptr.downT > LONG_PRESS_MS) longPress();
       const k = RM ? 1 : 1 - Math.exp(-dt * 6);
       if (!ptr || !ptr.moved) cam.x += (cam.tx - cam.x) * k;
       if (Math.abs(cam.x - cam.tx) < 0.02) cam.x = cam.tx;
@@ -355,8 +378,10 @@ export function createWorld(opts) {
   return {
     start, resize,
     // Read-only peek for tests and the smoke check.
-    debug: () => ({ mode, W, H, S, u, cam: { ...cam }, geom, sadieSize: [SADIE_W, SADIE_H], paintingRect: activities.painting && activities.painting.paperRect() }),
+    debug: () => ({ mode, W, H, S, u, cam: { ...cam }, anchors, view: { ...view }, vel, geom, sadieSize: [SADIE_W, SADIE_H], paintingRect: activities.painting && activities.painting.paperRect() }),
     activity: (id) => activities[id],
+    sound,
+    panTo: (centerX) => { cam.tx = clampCamX(centerX - W / 2, 1, W, room.width); },
     enter: enterActivity,
   };
 }

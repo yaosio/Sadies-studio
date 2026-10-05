@@ -4,16 +4,16 @@
 const PENTATONIC = [0, 2, 4, 7, 9]; // semitones, so any run of pots sounds friendly
 
 export function createSound() {
-  let ctx = null, master = null, greeted = false;
+  let ctx = null, master = null, greeted = false, purring = null;
 
-  function tone(freq, at, dur, { type = 'triangle', gain = 0.5, to = 0, vibrato = 0 } = {}) {
+  function tone(freq, at, dur, { type = 'triangle', gain = 0.5, to = 0, vibrato = 0, rate = 22 } = {}) {
     const t0 = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
     o.type = type;
     o.frequency.setValueAtTime(freq, t0);
     if (to) o.frequency.exponentialRampToValueAtTime(to, t0 + dur);
     if (vibrato) {
       const lfo = ctx.createOscillator(), lg = ctx.createGain();
-      lfo.frequency.value = 22; lg.gain.value = vibrato;
+      lfo.frequency.value = rate; lg.gain.value = vibrato;
       lfo.connect(lg); lg.connect(o.frequency); lfo.start(t0); lfo.stop(t0 + dur + 0.05);
     }
     g.gain.setValueAtTime(0.0001, t0);
@@ -25,10 +25,32 @@ export function createSound() {
   const hz = (semi) => 440 * Math.pow(2, (semi - 9) / 12); // semitones above middle C
 
   const sounds = {
-    // Sadie's happy chirp when the child starts: three quick notes going up.
-    greet: () => { tone(hz(7), 0, 0.14, { vibrato: 18 }); tone(hz(12), 0.12, 0.14, { vibrato: 18 }); tone(hz(16), 0.24, 0.3, { vibrato: 22 }); },
-    // Sadie petted: a short rolling mrrp.
-    mrrp: () => { tone(300, 0, 0.18, { type: 'sawtooth', gain: 0.18, to: 420, vibrato: 60 }); tone(420, 0.16, 0.14, { type: 'sawtooth', gain: 0.14, to: 330, vibrato: 50 }); },
+    // Sadie's trill when the child starts: a rolled "brrrrp" that climbs, then a
+    // second, shorter one on top (a cat's hello).
+    greet: () => {
+      tone(560, 0, 0.5, { type: 'triangle', gain: 0.42, to: 880, vibrato: 170, rate: 27 });
+      tone(840, 0.5, 0.32, { type: 'triangle', gain: 0.4, to: 1180, vibrato: 200, rate: 29 });
+    },
+    // Sadie petted: a purr, a low rumble that swells and fades. Touch again and
+    // the old purr gives way to the new one.
+    purr: () => {
+      if (purring) purring();
+      const t0 = ctx.currentTime, dur = 1.8, out = ctx.createGain(), low = ctx.createBiquadFilter();
+      low.type = 'lowpass'; low.frequency.value = 260;
+      out.gain.setValueAtTime(0.0001, t0);
+      out.gain.exponentialRampToValueAtTime(0.5, t0 + 0.25);
+      out.gain.setValueAtTime(0.5, t0 + dur - 0.7);
+      out.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      const pulse = ctx.createGain(); // the rumble: loudness pulsing about 25 times a second
+      pulse.gain.value = 0.55;
+      const lfo = ctx.createOscillator(), depth = ctx.createGain();
+      lfo.frequency.value = 25; depth.gain.value = 0.45; lfo.connect(depth); depth.connect(pulse.gain);
+      const oscs = [lfo, ...[62, 93, 124].map((f, i) => { const o = ctx.createOscillator(); o.type = i ? 'triangle' : 'sawtooth'; o.frequency.value = f; o.connect(pulse); return o; })];
+      pulse.connect(low); low.connect(out); out.connect(master);
+      oscs.forEach((o) => { o.start(t0); o.stop(t0 + dur + 0.05); });
+      purring = () => { out.gain.cancelScheduledValues(ctx.currentTime); out.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.05); purring = null; };
+      setTimeout(() => { if (purring) purring = null; }, dur * 1000);
+    },
     // Something in the room touched: a soft wooden pop.
     pop: () => tone(520, 0, 0.09, { type: 'sine', gain: 0.35, to: 300 }),
     // A paint pot: a note from the pentatonic scale, one pot per note.

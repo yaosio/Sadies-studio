@@ -13,6 +13,7 @@ import { layoutTray, inRect } from './tray.js';
 import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
+import { savePng } from './export.js';
 import { PAINTING_LINES as LINES } from './lines.js';
 import { SPARK } from '../../art/effects.js';
 
@@ -253,6 +254,11 @@ export function createPainting(env) {
       return -1;
     },
     tap: () => say(pick(LINES.art)),
+    // Long press: save hung painting i out as a picture.
+    save(i) {
+      say(LINES.saving);
+      savePng(hung[i], 'sadies-painting-' + (i + 1) + '.png');
+    },
   };
 
   return {

@@ -17,6 +17,7 @@ export const PAINTING_LINES = {
   wipe: 'Wiping is fine. Real artists do it all the time.',
   empty: 'The paper is empty! Paint something first.',
   hung: ["Hmph. It's wonderful. Don't tell anyone I said so.", 'Up it goes! The studio looks better already.', "A masterpiece. I'll allow it."],
+  saving: 'Saving it for you. Hold still. I mean, the painting.',
   bye: 'Your painting will wait on the easel.',
   art: ['I remember this one. Still good.', 'Hanging art is the best part.', "Very nice. I'd sniff it."],
 };

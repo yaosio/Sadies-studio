@@ -39,8 +39,9 @@ list.
 
 ## Audio
 
-Sounds are synthesized in code. Sadie makes one happy sound when the child
-starts and sounds when touched. She never makes noise on her own.
+Sounds are synthesized in code. Sadie trills once when the child starts and
+purrs when petted; other objects make small sounds. She never makes noise on
+her own.
 
 ## Not yet decided
 

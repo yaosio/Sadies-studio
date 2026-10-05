@@ -31,6 +31,41 @@ for (const target of targets) {
   const first = await st();
   assert.equal(first.hung, 2, `${target}: two example paintings on the line`);
 
+  // every sound plays without error (the first touch unlocks audio)
+  await page.mouse.click(5, 5);
+  await page.evaluate(() => { const s = window.__studio.sound; for (const n of s.names()) s.play(n, 3); });
+  await page.waitForTimeout(100);
+
+  // flick the room sideways: it glides on after letting go, and catching it does not jump
+  const camX = () => page.evaluate(() => window.__studio.debug().cam.x);
+  await page.mouse.move(800, 100); await page.mouse.down();
+  for (let i = 1; i <= 8; i++) { await page.mouse.move(800 - i * 40, 100); await page.waitForTimeout(16); }
+  await page.mouse.up();
+  const atRelease = await camX();
+  await page.waitForTimeout(150);
+  const gliding = await camX();
+  assert.ok(gliding - atRelease > 20, `${target}: flick keeps gliding after release (${atRelease} -> ${gliding})`);
+  await page.mouse.move(500, 100);
+  const before = await camX();
+  await page.mouse.down();
+  const caught = await camX();
+  assert.ok(Math.abs(caught - before) < 25, `${target}: catching a flick does not jump (${before} -> ${caught})`);
+  await page.mouse.up();
+
+  // hold a finger on a hung painting: it is offered as a PNG download
+  const slotPos = await page.evaluate(() => {
+    const w = window.__studio, d = w.debug(), r = w.activity('painting').room.slotRect(0, d.anchors.clothesline);
+    return { x: r.x + r.w / 2, y: r.y + r.h / 2 };
+  });
+  await page.evaluate((x) => { window.__studio.panTo(x); }, slotPos.x);
+  await page.waitForTimeout(900);
+  const spot = await page.evaluate((p) => { const d = window.__studio.debug(); return { x: (p.x * d.view.z + d.view.ox) * d.S, y: (p.y * d.view.z + d.view.oy) * d.S }; }, slotPos);
+  await page.mouse.move(spot.x, spot.y);
+  const [download] = await Promise.all([page.waitForEvent('download', { timeout: 3000 }), (async () => { await page.mouse.down(); await page.waitForTimeout(900); await page.mouse.up(); })()]);
+  assert.match(download.suggestedFilename(), /^sadies-painting-1\.png$/);
+  await page.evaluate(() => window.__studio.panTo(760));
+  await page.waitForTimeout(900);
+
   // tap the easel (middle of the screen in the room view)
   const easel = await page.evaluate(() => { const d = window.__studio.debug(); return { x: d.W / 2 * d.S, y: (d.geom.F - 142) * d.S }; });
   await page.mouse.click(easel.x, easel.y);

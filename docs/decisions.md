@@ -55,6 +55,13 @@ so) or **proposed** (a default picked, awaiting the user).
   missing questions itself and records answers here. Reason: the user does
   not know what to ask.
 
+- [confirmed] Door, tab and tray stay the size they are now (user tried it and
+  likes it).
+- [confirmed] Saving a painting out: long-press (about 0.65 s) on a hung
+  painting offers it as a PNG. Reason: no menu or button needed.
+- [confirmed] Sadie trills when the child starts (first touch) and purrs when
+  touched.
+
 ## Technical (all proposed)
 
 - [proposed] (built) Plain web tech, ES modules, canvas, no build step, minimal
@@ -81,8 +88,11 @@ so) or **proposed** (a default picked, awaiting the user).
 - [proposed] Saves are version 2: `{ version, activities: { painting: ... } }`
   under key `sadies-studio`; the mockup's v1 is migrated. See saving.md.
 - [proposed] Sound unlocks on the first touch (browsers require it), where
-  Sadie's happy chirp plays once. Taps on Sadie, objects, pots and tools make
-  small sounds. Nothing ever plays by itself.
+  Sadie's trill plays once. Objects, pots and tools make small sounds. Nothing
+  ever plays by itself.
+- [proposed] The PNG save uses a normal download link, or the host's own save
+  (the artifact `downloads` capability) when running as an artifact, where
+  sandboxed pages cannot start downloads.
 - [proposed] A tiny dependency-free bundler (`npm run build`) makes one HTML
   file for artifacts; source follows three code-style rules it checks. Reason:
   artifacts are single pages, development stays build-free.
@@ -97,10 +107,6 @@ so) or **proposed** (a default picked, awaiting the user).
 
 ## Open questions
 
-- Saving a painting out as an image is decided but not built: where does the
-  control go without adding a menu? (Proposed: a long-press on a hung painting.)
-- Should the door and tab be larger or more visible for a 6 year old? (Built
-  small on purpose; needs the child's test.)
 
 - Which learning activity comes first after painting? (Not known yet;
   focus is painting.)

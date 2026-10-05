@@ -4,7 +4,7 @@
 // artifact. No dependencies. It works because source modules follow three rules,
 // which the build checks:
 //   - imports are one line each: import { a, b } from './x.js';
-//   - exports are `export const|function|class name` (no default, no `export let`)
+//   - exports are `export const|function|async function|class name` (no default, no `export let`)
 //   - no circular imports
 // Each module is wrapped in a function and gets its imports from a registry.
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -28,7 +28,7 @@ function visit(path, stack = []) {
   });
   if (/^import /m.test(src)) throw new Error(path + ': unsupported import form');
   if (/^export (default|let|\{)/m.test(src)) throw new Error(path + ': unsupported export form');
-  src = src.replace(/^export (const|function|class) ([A-Za-z0-9_$]+)/gm, (m, kind, name) => { exportsList.push(name); return `${kind} ${name}`; });
+  src = src.replace(/^export (const|function|class|async function) ([A-Za-z0-9_$]+)/gm, (m, kind, name) => { exportsList.push(name); return `${kind} ${name}`; });
   sources[path] = `${src}\nreturn { ${exportsList.join(', ')} };`;
   seen.add(path);
   order.push(path);
