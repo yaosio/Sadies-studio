@@ -36,6 +36,7 @@ Open only the file you need. Do not read them all.
 | [docs/architecture.md](docs/architecture.md) | you add a room or activity, or decide where code goes |
 | [docs/saving.md](docs/saving.md) | you read or write anything saved on the device |
 | [docs/testing.md](docs/testing.md) | you write or run tests, or screenshot checks |
+| [docs/engineering.md](docs/engineering.md) | you start a feature, or want the checklist of things to plan for (safety, privacy, access, offline, performance, audio, backup, browsers, assets) |
 | [docs/decisions.md](docs/decisions.md) | you are about to change or question an earlier choice |
 | [docs/mockup.md](docs/mockup.md) | you need the reference look, or facts the mockup already settled |
 
@@ -63,6 +64,19 @@ Read that before editing that folder.
 9. Keep dependencies and tooling minimal. Add one only with a decision-log line.
 10. Never ask a child-facing question that needs a parent. No accounts, no
     network calls, no analytics, no ads, no external links.
+
+## Working agreement: act like the software engineer
+
+The user is not an engineer and cannot know what to ask. Do not wait to be asked.
+
+- Before building a feature, walk [docs/engineering.md](docs/engineering.md)
+  and raise anything relevant yourself, in the thread, in plain words.
+- Record every answer in [docs/decisions.md](docs/decisions.md). Unanswered
+  items stay in its "Open questions" list, written as questions, never as
+  assumptions. Do not build on an unanswered question; pick the safest default,
+  mark it "proposed" and say so.
+- If you notice a risk, gap or missing doc while working, say so even if it is
+  outside the task.
 
 ## Docs rules (keep docs small)
 

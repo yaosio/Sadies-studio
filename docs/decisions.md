@@ -30,6 +30,12 @@ so) or **proposed** (a default picked, awaiting the user).
   change, rules as checks where possible. Reason: docs bloated in an earlier
   project and made sessions read unrelated text.
 
+## Working style
+
+- [confirmed] Claude acts like the software engineer: raises risks and
+  missing questions itself and records answers here. Reason: the user does
+  not know what to ask.
+
 ## Technical (all proposed)
 
 - [proposed] Plain web tech, ES modules, canvas, no build step, minimal
@@ -54,3 +60,11 @@ so) or **proposed** (a default picked, awaiting the user).
 - Procedural art in code (as in the mockup) or image files for new art?
 - Sound and voice for Sadie?
 - Which learning activity comes first after painting?
+- Self-host the font, or accept the Google Fonts request?
+- Which devices and browsers must work?
+- Home-screen install and hosting: where does it live?
+- Backup/export of paintings for a parent, and any parent-only area?
+- Language(s) for content, and progress tracking or none?
+- Accessibility needs of the child (vision, motor)?
+
+The full checklist is in [engineering.md](engineering.md).
