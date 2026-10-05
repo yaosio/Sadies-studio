@@ -42,6 +42,8 @@ export function createWorld(opts) {
   const now = () => performance.now();
   function say(text, ms) { speech.say(text, ms, now()); sadie.flick = 1; }
 
+  if (store.onFail) store.onFail(() => say(WORLD_LINES.saveFail, 7000));
+
   /* ---------------- activities ---------------- */
   const env = {
     store, sound, reducedMotion: RM, now, say,

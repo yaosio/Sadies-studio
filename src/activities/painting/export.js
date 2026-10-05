@@ -56,12 +56,13 @@ export async function savePng(p, filename) {
 // a .json file but accept plain text, and text is never recompressed, so it cannot be damaged on the way.
 export const saveBackupText = (text, filename) => saveFile(new Blob([text], { type: 'text/plain' }), filename);
 
-// Asks for a file (the system picker) and gives its text, or null if they cancel. Must run from a tap, or the browser will not open the picker.
-export function pickFile() {
+// Asks for a file (the system picker) and gives its text, null if they cancel, or 'toobig' if the
+// file is over maxBytes (it is not read). Must run from a tap, or the browser will not open the picker.
+export function pickFile(maxBytes = Infinity) {
   return new Promise((done) => {
     const input = document.createElement('input');
     input.type = 'file'; input.accept = '.txt,text/plain,.json,application/json'; input.style.display = 'none';
-    input.onchange = async () => { const f = input.files && input.files[0]; input.remove(); try { done(f ? await f.text() : null); } catch (e) { done(null); } };
+    input.onchange = async () => { const f = input.files && input.files[0]; input.remove(); if (f && f.size > maxBytes) { done('toobig'); return; } try { done(f ? await f.text() : null); } catch (e) { done(null); } };
     input.addEventListener('cancel', () => { input.remove(); done(null); });
     document.body.appendChild(input);
     input.click();

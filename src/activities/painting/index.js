@@ -16,7 +16,7 @@ import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, dr
 import { drawClothesline, slotRect, slotPicture, hangShape } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
 import { savePng, saveBackupText, pickFile } from './export.js';
-import { buildBackup, backupName, parseBackup, newFromBackup } from '../../save/backup.js';
+import { buildBackup, backupName, parseBackup, newFromBackup, MAX_FILE_BYTES } from '../../save/backup.js';
 import { addFinished, lineToBook, bookToLine, remove, splitLoaded, lineIsFull, takeToEasel } from './collection.js';
 import { layoutBook, clampScroll, cardAt } from './book.js';
 import { drawBookPage, paintingCanvas, thumbFor, cardInner } from './book-art.js';
@@ -402,8 +402,9 @@ export function createPainting(env) {
   }
   // Merge a file into what is here: nothing is replaced (see save/backup.js).
   async function restore() {
-    const text = await pickFile();
+    const text = await pickFile(MAX_FILE_BYTES);
     if (text === null) return;
+    if (text === 'toobig') { env.sound.play('tool'); say(LINES.restoredBig); return; }
     say(LINES.restoring);
     const got = parseBackup(text);
     if (!got) { env.sound.play('tool'); say(LINES.restoredBad); return; }

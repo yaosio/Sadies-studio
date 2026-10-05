@@ -31,6 +31,10 @@ async function boot() {
   addEventListener('pagehide', () => store.flush());
   document.addEventListener('visibilitychange', () => { if (document.hidden) store.flush(); });
 
+  // Ask the browser to keep the paintings even when space runs low. Chrome and Safari answer silently;
+  // Firefox shows a prompt, which a child must never see, so it is left out there. See docs/saving.md.
+  try { if (!/Firefox/.test(navigator.userAgent) && navigator.storage && navigator.storage.persist) Promise.resolve(navigator.storage.persist()).catch(() => {}); } catch (e) { /* not available: fine */ }
+
   if (params.has('test') || still) window.__studio = world; // for tests/ only
 }
 boot();
