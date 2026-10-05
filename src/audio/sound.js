@@ -1,7 +1,35 @@
-// All sound is made here, in code (no audio files). Nothing plays until the child
-// first touches the screen (browsers insist), and nothing ever plays on its own:
-// every sound answers a touch.
+// All sound is made here, in code (no audio files). Sadie's trill plays as the
+// page loads when the browser allows sound, otherwise on the very first touch
+// (browsers insist on one). Nothing else ever plays on its own: every other sound
+// answers a touch.
 const PENTATONIC = [0, 2, 4, 7, 9]; // semitones, so any run of pots sounds friendly
+
+// Sadie's trill: a rolled "brrrrp" that rises. A buzzy tone is switched on and
+// off about 28 times a second (the roll), shaped by two vowel-like resonances,
+// with a short soft chirp at the end. Starts at time t0 on audio context ctx.
+export function trill(ctx, out, t0) {
+  const roll = 0.42, dur = 0.58;
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(470, t0);
+  osc.frequency.linearRampToValueAtTime(690, t0 + roll);
+  osc.frequency.linearRampToValueAtTime(930, t0 + dur);
+  const gate = ctx.createGain(); // the roll: gain flips between 0 and 1
+  gate.gain.value = 0.5;
+  const lfo = ctx.createOscillator(), depth = ctx.createGain();
+  lfo.type = 'square'; lfo.frequency.value = 28; depth.gain.value = 0.5;
+  lfo.connect(depth); depth.connect(gate.gain);
+  const body = ctx.createGain(), env = ctx.createGain(), sum = ctx.createGain();
+  [[950, 4], [2300, 5]].forEach(([f, q]) => { const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q; gate.connect(bp); bp.connect(sum); });
+  osc.connect(gate);
+  sum.gain.value = 1.6;
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(0.7, t0 + 0.03);
+  env.gain.setValueAtTime(0.7, t0 + roll);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  sum.connect(env); env.connect(body); body.connect(out);
+  [osc, lfo].forEach((o) => { o.start(t0); o.stop(t0 + dur + 0.05); });
+}
 
 export function createSound() {
   let ctx = null, master = null, greeted = false, purring = null;
@@ -25,12 +53,8 @@ export function createSound() {
   const hz = (semi) => 440 * Math.pow(2, (semi - 9) / 12); // semitones above middle C
 
   const sounds = {
-    // Sadie's trill when the child starts: a rolled "brrrrp" that climbs, then a
-    // second, shorter one on top (a cat's hello).
-    greet: () => {
-      tone(560, 0, 0.5, { type: 'triangle', gain: 0.42, to: 880, vibrato: 170, rate: 27 });
-      tone(840, 0.5, 0.32, { type: 'triangle', gain: 0.4, to: 1180, vibrato: 200, rate: 29 });
-    },
+    // Sadie's trill when the child starts.
+    greet: () => trill(ctx, master, ctx.currentTime),
     // Sadie petted: a purr, a low rumble that swells and fades. Touch again and
     // the old purr gives way to the new one.
     purr: () => {
@@ -61,22 +85,42 @@ export function createSound() {
     hang: () => [12, 16, 19, 24].forEach((s, k) => tone(hz(s), k * 0.09, 0.25, { type: 'sine', gain: 0.3 })),
   };
 
+  function ensure() {
+    if (ctx) return true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination); } catch (e) { ctx = null; return false; }
+    return true;
+  }
+  function greetIfRunning() {
+    if (ctx && ctx.state === 'running' && !greeted) { greeted = true; sounds.greet(); }
+  }
+  function unlock() {
+    if (!ensure()) return;
+    if (ctx.state === 'suspended') ctx.resume().then(greetIfRunning, () => {});
+  }
+
   return {
-    // Call from a touch or key handler. Safe to call every time.
-    unlock() {
-      if (!ctx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
-        try { ctx = new AC(); master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination); } catch (e) { ctx = null; return; }
-      }
-      if (ctx.state === 'suspended') ctx.resume();
+    unlock,
+    // Call once at boot: Sadie trills as soon as the browser lets sound start,
+    // which is at once if the page is allowed to autoplay, else on the first
+    // touch, key or click anywhere.
+    start() {
+      if (!ensure()) return;
+      ctx.addEventListener('statechange', greetIfRunning);
+      for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) document.addEventListener(ev, unlock, { capture: true });
+      unlock();
+      greetIfRunning();
     },
-    // Sadie's hello, once, on the very first touch.
-    greetOnce() { if (!greeted) { greeted = true; this.play('greet'); } },
     play(name, arg) {
-      if (!ctx) return; // a context still resuming queues the note
-      try { sounds[name](arg); } catch (e) { /* sound is never worth a crash */ }
+      if (!ensure()) return;
+      const run = () => { try { sounds[name](arg); } catch (e) { /* sound is never worth a crash */ } };
+      if (ctx.state === 'running') { run(); return; }
+      // Still waking up (the first touch is what wakes it): play if it wakes at once, never late.
+      const asked = performance.now();
+      ctx.resume().then(() => { if (performance.now() - asked < 400) run(); }, () => {});
     },
     names: () => Object.keys(sounds),
+    state: () => ({ ctx: ctx && ctx.state, greeted }),
   };
 }

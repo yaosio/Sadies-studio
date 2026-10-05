@@ -37,7 +37,8 @@ Raise the relevant ones before building. Log each answer in
 
 - Sounds are synthesized in code. One happy Sadie sound at start, sounds when
   touched, never random. (done)
-- Browsers block audio until a tap, so the start sound plays on the first tap.
+- Browsers block audio until a tap. The trill is tried on load and plays on
+  the first tap if blocked (`src/audio/sound.js`).
   A mute a child can find. (default)
 
 ## Saved data

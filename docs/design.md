@@ -39,7 +39,8 @@ list.
 
 ## Audio
 
-Sounds are synthesized in code. Sadie trills once when the child starts and
+Sounds are synthesized in code. Sadie trills once when the page loads (or on the
+first touch if the browser blocks sound until then) and
 purrs when petted; other objects make small sounds. She never makes noise on
 her own.
 

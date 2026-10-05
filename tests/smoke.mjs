@@ -21,7 +21,7 @@ for (const target of targets) {
   const ctx = await browser.newContext({ viewport: { width: 1000, height: 600 } });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => errors.push(e.message));
-  page.on('console', (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !m.text().includes('willReadFrequently')) errors.push(m.text()); });
+  page.on('console', (m) => { if ((m.type() === 'error' || m.type() === 'warning') && !m.text().includes('willReadFrequently') && !m.text().includes('AudioContext was not allowed')) errors.push(m.text()); });
   page.on('requestfailed', (r) => errors.push('request failed: ' + r.url()));
   page.on('request', (r) => { if (!r.url().startsWith(url) && !r.url().startsWith('data:') && !r.url().startsWith('blob:')) errors.push('outside request: ' + r.url()); });
 
@@ -129,5 +129,40 @@ for (const target of targets) {
   await ctx.close();
   console.log(`ok  ${target}`);
 }
+// Sadie's trill: it is a roll (about 28 pulses a second) that rises, not a coin chime.
+{
+  const page = await browser.newPage();
+  await page.goto(`${url}/index.html?test`);
+  const pulses = await page.evaluate(async () => {
+    const { trill } = await import('/src/audio/sound.js');
+    const rate = 22050, ctx = new OfflineAudioContext(1, rate, rate);
+    trill(ctx, ctx.destination, 0);
+    const data = (await ctx.startRendering()).getChannelData(0), win = 110; // 5 ms windows
+    const rms = [];
+    for (let i = 0; i + win < rate * 0.4; i += win) { let s = 0; for (let j = 0; j < win; j++) s += data[i + j] ** 2; rms.push(Math.sqrt(s / win)); }
+    const part = rms.slice(10), mean = part.reduce((a, b) => a + b) / part.length;
+    let up = 0; for (let i = 1; i < part.length; i++) if (part[i - 1] < mean && part[i] >= mean) up++;
+    return { up, secs: part.length * 0.005, peak: Math.max(...rms) };
+  });
+  assert.ok(pulses.peak > 0.02, 'the trill makes sound');
+  const hz = pulses.up / pulses.secs;
+  assert.ok(hz > 18 && hz < 40, `trill rolls at about 28 pulses a second (measured ${hz.toFixed(1)})`);
+  await page.close();
+  console.log('ok  trill shape');
+}
+
+// The trill plays on load when the browser allows sound, otherwise on the first touch.
+for (const [label, args, expectOnLoad] of [['autoplay allowed', ['--autoplay-policy=no-user-gesture-required'], true], ['autoplay blocked', ['--autoplay-policy=document-user-activation-required'], false]]) {
+  const b = await launch(args);
+  const page = await b.newPage();
+  await page.goto(`${url}/index.html?test`);
+  await page.waitForTimeout(500);
+  const state = () => page.evaluate(() => window.__studio.sound.state());
+  assert.equal((await state()).greeted, expectOnLoad, `${label}: trill on load is ${expectOnLoad}`);
+  if (!expectOnLoad) { await page.mouse.click(20, 20); await page.waitForTimeout(300); assert.equal((await state()).greeted, true, `${label}: trill plays on the first touch`); }
+  await b.close();
+  console.log(`ok  trill timing, ${label}`);
+}
+
 await browser.close();
 server.close();

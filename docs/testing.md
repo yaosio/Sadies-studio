@@ -13,7 +13,8 @@ Playwright; Chromium is in the cloud environment).
 2. **Smoke test** (`npm run smoke`): in headless Chromium, load the app, tap
    the easel, check the paper fills the screen, paint, use the tray, hang it
    up, leave with Escape, reload and check it survived, flick the room and catch it, long-press a hung
-   painting and get a PNG download, play every sound, and fail on any console
+   painting and get a PNG download, play every sound, check the trill is a roll and when it plays (on load or
+   first touch), and fail on any console
    error or request to another host. Runs on `index.html` and `dist/index.html`.
 3. **Screenshot checks** (`npm run visual`): room and painting-with-tray at phone
    portrait, phone landscape and desktop, byte-compared with

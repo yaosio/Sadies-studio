@@ -59,8 +59,12 @@ so) or **proposed** (a default picked, awaiting the user).
   likes it).
 - [confirmed] Saving a painting out: long-press (about 0.65 s) on a hung
   painting offers it as a PNG. Reason: no menu or button needed.
-- [confirmed] Sadie trills when the child starts (first touch) and purrs when
-  touched.
+- [confirmed] Sadie trills when the page loads and purrs when touched. The
+  trill is a rolled cat "brrrp" (the user said the first version sounded like a
+  game coin).
+- [proposed] Browsers (and the artifact frame) may block sound until a touch.
+  The app tries to trill on load and, if blocked, trills on the first touch, key
+  or click anywhere. Reason: nothing can force audio before a gesture.
 
 ## Technical (all proposed)
 
@@ -87,9 +91,8 @@ so) or **proposed** (a default picked, awaiting the user).
   Reason: least UI, usable in portrait and landscape, no handedness bias.
 - [proposed] Saves are version 2: `{ version, activities: { painting: ... } }`
   under key `sadies-studio`; the mockup's v1 is migrated. See saving.md.
-- [proposed] Sound unlocks on the first touch (browsers require it), where
-  Sadie's trill plays once. Objects, pots and tools make small sounds. Nothing
-  ever plays by itself.
+- [proposed] Objects, pots and tools make small sounds when touched. Nothing
+  plays by itself except Sadie's one trill at the start.
 - [proposed] The PNG save uses a normal download link, or the host's own save
   (the artifact `downloads` capability) when running as an artifact, where
   sandboxed pages cannot start downloads.

@@ -9,8 +9,8 @@ export async function loadPlaywright() {
   return createRequire(globalRoot + '/')('playwright');
 }
 
-export async function launch() {
+export async function launch(extraArgs = []) {
   const pw = await loadPlaywright();
   const chromium = pw.chromium || pw.default.chromium;
-  return chromium.launch({ args: ['--use-gl=swiftshader', '--no-sandbox'] });
+  return chromium.launch({ args: ['--use-gl=swiftshader', '--no-sandbox', ...extraArgs] });
 }

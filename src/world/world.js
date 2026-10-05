@@ -185,7 +185,6 @@ export function createWorld(opts) {
 
   function onDown(e) {
     sound.unlock();
-    sound.greetOnce();
     if (ptrId !== null) return; // one finger at a time: a resting palm must not paint
     ptrId = e.pointerId;
     try { cv.setPointerCapture(e.pointerId); } catch (_) { /* not all browsers */ }
