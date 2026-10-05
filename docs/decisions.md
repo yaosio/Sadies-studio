@@ -118,7 +118,14 @@ so) or **proposed** (a default picked, awaiting the user).
   (frame and legs) and Sadie are in front. Reason: a tall one hung over the easel.
 - [confirmed] A very tall painting hangs and then rolls up where it would reach the
   floor. Reason: the user's idea. Wide ones just hang shorter.
-- [proposed] Paper stops growing at 320 cells a side. Zoom stops at 32 canvas
+- [confirmed] Much more paper, with a visible wall rather than endless paper (the user's
+  choice: storage is finite and an endless canvas is hard to find your way around).
+  Paper stops growing at 2000 cells a side (the number is [proposed]); at the limit a
+  wooden wall shows past the paper's edge and Sadie says so. No minimap for now (too small
+  on a phone): zooming out shows where you are. Reason: the user's choice.
+- [confirmed] Faint fibres in bare paper, fixed to the paper, so scrolling over empty paper
+  still looks like moving. Not dots across the screen.
+- [proposed] Zoom stops at 32 canvas
   pixels per cell. A double tap within 28 art pixels and about a third of a second
   zooms instead of dabbing twice.
 - [proposed] Paintings are stored in IndexedDB (one record per activity), with

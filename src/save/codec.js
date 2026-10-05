@@ -1,6 +1,6 @@
 // Painting <-> saved text. One letter per pixel, A (bare paper) to K (paint 10),
 // with a run count after a letter when it repeats: "A12B" is twelve A then one B.
-export const MAX_SIDE = 512;
+export const MAX_SIDE = 2048; // a little over the paper limit in grid.js
 const LETTERS = 'ABCDEFGHIJK';
 
 export function encodeCells(cells) {

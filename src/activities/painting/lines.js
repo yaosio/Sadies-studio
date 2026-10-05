@@ -20,6 +20,7 @@ export const PAINTING_LINES = {
   nothingToUndo: 'Nothing to undo.',
   zoomed: 'Pinch to zoom. Tap twice to see the whole paper.',
   tabs: 'Pull a tab out for more paper. Push it in for less.',
+  wall: "That's the wall. There is no more paper.",
   tabsDone: 'Your painting stays right where it is.',
   first: 'Oh! You started. Good.',
   praise: ['Hmm. Not bad at all.', 'Ooh. I see what you are doing.', 'Keep going. I am watching.', 'That part is my favorite.', "Hmph. That's actually very good.", 'Bold! I like bold.'],

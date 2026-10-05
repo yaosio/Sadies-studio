@@ -7,7 +7,7 @@ Full-screen paper activity. Product rules: [docs/painting.md](../../../docs/pain
 - `grid.js`: pure paint-grid logic (default size, growing and shrinking, zoom range and
   view clamping, pull-out tab boxes, stamping, strokes).
 - `tools.js`: the four tools. `stamps.js`: the stamp pictures as paint cells (pure).
-  `thumb.js`: fitting and shrinking for the easel board and clothesline. `tray.js`: tray
+  `undo.js`: packed undo snapshots (pure). `thumb.js`: fitting and shrinking for the easel board and clothesline. `tray.js`: tray
   layout, hit boxes and what each drawer holds (pure).
 - `art.js`: pot, brush, sponge, cloth, peg, door, drawer knob and tray drawing.
   `clothesline-art.js`: the line with its frames. `examples.js`: first-run paintings.

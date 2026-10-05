@@ -6,7 +6,8 @@ import { join, relative } from 'node:path';
 import { encodeCells, decodeCells, encodePainting, decodePainting } from '../src/save/codec.js';
 import { migrate, emptySave, CURRENT_VERSION } from '../src/save/migrate.js';
 import { createStore, openStore, KEY } from '../src/save/store.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, putStamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, peekTabs, MAX_CELL } from '../src/activities/painting/grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, putStamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, peekTabs, MAX_CELL, wallOver } from '../src/activities/painting/grid.js';
+import { packSnapshot, unpackSnapshot } from '../src/activities/painting/undo.js';
 import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
 import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
 import { layoutTray, ITEM_IDS, DRAWER_IDS, itemsFor } from '../src/activities/painting/tray.js';
@@ -380,4 +381,26 @@ test('edge arrows and the hold ring stay on screen', () => {
     }
     assert.deepEqual(holdRingSpot(100, 100, W, H, u), { x: 100, y: 100 }, 'centered on the touch when there is room');
   }
+});
+
+test('undo snapshots pack to runs and unpack exactly', () => {
+  const cells = new Uint8Array(2000 * 2000); cells[5] = 3; cells[2000 * 1000 + 17] = 10; cells.fill(2, 100, 140);
+  const s = packSnapshot(2000, 2000, cells);
+  assert.ok(s.vals.length < 20, 'a mostly bare paper packs to a few runs');
+  assert.deepEqual(unpackSnapshot(s), cells);
+  assert.deepEqual([...unpackSnapshot(packSnapshot(3, 1, Uint8Array.from([1, 1, 4])))], [1, 1, 4]);
+});
+test('the wall: paper at the limit may be scrolled a little past its edge, smaller paper may not', () => {
+  const W = 400, H = 800, cell = 8;
+  const big = clampView({ cell, ox: 99999, oy: 99999 }, MAX_SIDE, MAX_SIDE, W, H, wallOver(MAX_SIDE, MAX_SIDE, W, H));
+  assert.ok(big.ox > 0 && big.oy > 0, 'the wall shows past the paper');
+  const small = clampView({ cell, ox: 99999, oy: 99999 }, 300, 300, W, H, wallOver(300, 300, W, H));
+  assert.equal(small.ox, 0); assert.equal(small.oy, 0);
+  assert.equal(resizeSides(newPainting(MAX_SIDE, 40), 5, 0, 5, 0).p.w, MAX_SIDE, 'cannot grow past the wall');
+});
+test('big paintings save small and load again', () => {
+  const p = newPainting(MAX_SIDE, MAX_SIDE); stamp(p, 1000, 1000, 'brushB', 4);
+  const e = encodePainting(p);
+  assert.ok(e.d.length < 400, 'a bare big paper costs next to nothing to save');
+  assert.deepEqual(decodePainting(e).cells, p.cells);
 });

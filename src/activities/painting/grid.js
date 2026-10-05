@@ -7,7 +7,7 @@ import { TOOLS } from './tools.js';
 // cells along the short side, and as many as fit along the long side.
 export const SHORT_SIDE_CELLS = 54;
 export const MIN_SIDE = 24;
-export const MAX_SIDE = 320;
+export const MAX_SIDE = 2000; // the wall: paper cannot be pulled out past this
 export const MAX_HUNG = 13;
 export const MIN_PAINT_CELL = 3; // smallest cell, in canvas pixels, a view starts at
 export const MAX_CELL = 32; // closest zoom, in canvas pixels per cell
@@ -56,7 +56,7 @@ export function resizeSides(p, l, t, r, b, bounds = paintBounds(p)) {
 // Zoom is smooth: any cell size (canvas pixels per paint cell) between the
 // "table view" (the whole paper with a margin round it, for the pull-out tabs)
 // and MAX_CELL.
-export const fitCell = (gw, gh, W, H, margin = 0) => Math.max(0.05, Math.min((W - 2 * margin) / gw, (H - 2 * margin) / gh));
+export const fitCell = (gw, gh, W, H, margin = 0) => Math.max(0.01, Math.min((W - 2 * margin) / gw, (H - 2 * margin) / gh));
 // The zoom a sheet opens at: the smallest whole-number cell that is comfortable
 // to paint with and covers the whole screen, so no bars show while painting.
 export function startCell(gw, gh, W, H) {
@@ -70,13 +70,19 @@ export function zoomRange(gw, gh, W, H, margin) {
 }
 // Keep a view ({ cell, ox, oy }: where the paper's top-left sits on screen)
 // covering the screen: centered on an axis where the paper is smaller than the
-// screen, otherwise never scrolled past an edge.
-export function clampView(v, gw, gh, W, H) {
-  const axis = (o, size, screen) => (size <= screen ? Math.round((screen - size) / 2) : clamp(Math.round(o), Math.round(screen - size), 0));
-  return { cell: v.cell, ox: axis(v.ox, gw * v.cell, W), oy: axis(v.oy, gh * v.cell, H) };
+// screen, otherwise never scrolled past an edge (except `over`, see wallOver).
+export function clampView(v, gw, gh, W, H, over = { x: 0, y: 0 }) {
+  const axis = (o, size, screen, extra) => (size <= screen ? Math.round((screen - size) / 2) : clamp(Math.round(o), Math.round(screen - size - extra), extra));
+  return { cell: v.cell, ox: axis(v.ox, gw * v.cell, W, over.x), oy: axis(v.oy, gh * v.cell, H, over.y) };
+}
+// The wall: paper at its size limit on an axis may be scrolled a little past its
+// edge so the wall shows there (returns how far, in canvas pixels, per axis).
+export function wallOver(gw, gh, W, H) {
+  const band = Math.round(Math.min(W, H) * 0.08);
+  return { x: gw >= MAX_SIDE ? band : 0, y: gh >= MAX_SIDE ? band : 0 };
 }
 // The view at cell size `cell` that keeps paper point (px, py) (in cells) under screen point (sx, sy).
-export const viewAround = (cell, px, py, sx, sy, gw, gh, W, H) => clampView({ cell, ox: sx - px * cell, oy: sy - py * cell }, gw, gh, W, H);
+export const viewAround = (cell, px, py, sx, sy, gw, gh, W, H) => clampView({ cell, ox: sx - px * cell, oy: sy - py * cell }, gw, gh, W, H, wallOver(gw, gh, W, H));
 
 // The pull-out tabs, one on each edge of the paper, only while the whole paper
 // (and room for the tabs) is on screen, or always when `always` is set. Boxes are in canvas pixels; `hit` is a

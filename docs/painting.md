@@ -54,14 +54,19 @@ tabs on the paper.
   joystick, not a drag: the further from where the finger grabbed, the faster
   (up to about 45 cells a second), and holding still keeps going, so no long
   swipe is needed. The view keeps the whole paper in sight while it changes.
-  The painting stays where it is on the paper. Paper stops at 320 cells a side.
-  There is no "more paper" button.
+  The painting stays where it is on the paper. Paper stops at 2000 cells a side: that
+  is the **wall**. At the limit the view may scroll a little past the paper's edge, where
+  dark wooden planks show (`drawWall`, `wallOver`), and Sadie says there is no more paper.
+  There is no "more paper" button. Memory: a stroke redraws only the cells it touched,
+  and undo keeps packed runs (`undo.js`), so a big, mostly bare paper stays cheap.
 - **Moving around**: two fingers drag the paper; mouse wheel, arrow keys or
   right/middle-button drag also work. While painting within about a tenth of the
   screen of an edge of a zoomed paper, the view drifts that way and keeps painting
   under the finger. A second finger that lands while a stroke is already under way
   is ignored (a resting palm); a one-dab stroke is taken back when it turns out to
   be a pinch.
+- **Paper fibres**: faint short fibres in bare paper, fixed to the paper, so scrolling over
+  empty paper still shows movement (`drawGrain`). Sparse on purpose: no dots across the screen.
 - While a tab is held, new paper is tinted yellow and tick marks every 10 cells run along the pulled edges (the only scale cue; there is no grid).
 - Sadie explains pinch/double tap and the tabs the first time each is used.
 - Code: view math in `grid.js` (`zoomRange`, `startCell`, `clampView`, `edgeTabs`,

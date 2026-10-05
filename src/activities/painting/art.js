@@ -136,3 +136,40 @@ export function mkStampSize(step) {
   });
   p.outline('#4b3a5e'); return p.done();
 }
+
+// The wall at the edge of the biggest paper: dark planks outside the paper (drawn
+// behind it) with a lit lip where they meet it. Only on the sides at the limit.
+export function drawWall(c, place, atX, atY, W, H, u) {
+  const plank = 7 * u, lip = Math.max(1, u);
+  const band = (x, y, w, h, vertical) => {
+    if (w <= 0 || h <= 0) return;
+    c.fillStyle = '#6e4a2e'; c.fillRect(x, y, w, h);
+    c.fillStyle = '#5a3a22';
+    if (vertical) for (let px = x + plank; px < x + w; px += plank) c.fillRect(px, y, lip, h);
+    else for (let py = y + plank; py < y + h; py += plank) c.fillRect(x, py, w, lip);
+  };
+  const L = Math.round(place.x), T = Math.round(place.y), R = Math.round(place.x + place.w), B = Math.round(place.y + place.h);
+  if (atX) { band(0, 0, L, H, true); band(R, 0, W - R, H, true); }
+  if (atY) { band(0, 0, W, T, false); band(0, B, W, H - B, false); }
+  c.fillStyle = '#a87a4e';
+  if (atX) { if (L > 0) c.fillRect(L - lip, 0, lip, H); if (R < W) c.fillRect(R, 0, lip, H); }
+  if (atY) { if (T > 0) c.fillRect(0, T - lip, W, lip); if (B < H) c.fillRect(0, B, W, lip); }
+}
+
+// Faint fibres in the paper, fixed to the paper (not the screen) so scrolling over
+// bare paper still looks like moving. Sparse, only on bare cells. Fibres sit on
+// blocks of cells so they stay about the same size on screen at any zoom.
+export function drawGrain(c, place, cells, gw, gh, W, H, u) {
+  const k = place.cell, m = Math.max(1, Math.ceil((8 * u) / k)), B = m * k;
+  if (B > 80 * u) return;
+  const x0 = Math.max(0, Math.floor(-place.x / B)), y0 = Math.max(0, Math.floor(-place.y / B));
+  const x1 = Math.min(Math.floor((gw - 1) / m), Math.floor((W - place.x) / B)), y1 = Math.min(Math.floor((gh - 1) / m), Math.floor((H - place.y) / B));
+  c.fillStyle = 'rgba(150,120,80,.2)';
+  const len = Math.max(2, Math.round(B * 0.45)), t = Math.max(1, Math.round(u * 0.75));
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const h = Math.imul(x * 73856093 ^ y * 19349663, 0x9e3779b1) >>> 0;
+    if (h % 60 !== 0 || cells[y * m * gw + x * m] !== 0) continue;
+    const ox = place.x + x * B, oy = place.y + y * B, a = (h >>> 8) % Math.max(1, B - len), b = (h >>> 16) % Math.max(1, B - t);
+    if ((h >>> 5) & 1) c.fillRect(Math.round(ox + a), Math.round(oy + b), len, t); else c.fillRect(Math.round(ox + b), Math.round(oy + a), t, len);
+  }
+}

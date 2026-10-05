@@ -457,6 +457,37 @@ for (const target of targets) {
   await ctx.close();
   console.log(`ok  ${target} paper sizes and zoom`);
 }
+// The biggest paper: 2000 x 2000 loads, paints, undoes, and shows the wall at its edge.
+{
+  const errors = [];
+  const page = await browser.newPage({ viewport: { width: 420, height: 800 } });
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto(`${url}/index.html?test`);
+  await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room');
+  await page.mouse.click(5, 5);
+  await page.evaluate(() => window.__studio.activity('painting').load({ current: { w: 2000, h: 2000, d: 'A2001000BA1998999' }, hung: [], book: [] }));
+  await page.evaluate(() => window.__studio.panTo(760));
+  await page.waitForTimeout(900);
+  const easel = await page.evaluate(() => { const d = window.__studio.debug(); return { x: d.W / 2 * d.S, y: (d.geom.F - 142) * d.S }; });
+  await page.mouse.click(easel.x, easel.y);
+  await until(page, () => window.__studio.debug().mode === 'painting', 'painting mode');
+  await page.waitForTimeout(1200);
+  const state = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { w: s.current.w, h: s.current.h, painted: s.current.cells.reduce((a, v) => a + (v ? 1 : 0), 0), view: s.view }; });
+  const before = await state();
+  assert.deepEqual([before.w, before.h], [2000, 2000], 'a painting 2000 cells a side opens at its own size');
+  await page.mouse.move(150, 300); await page.mouse.down();
+  for (let i = 1; i <= 20; i++) await page.mouse.move(150 + i * 8, 300 + i * 5);
+  await page.mouse.up();
+  const after = await state();
+  assert.ok(after.painted > before.painted, 'painting on the biggest paper works');
+  for (let i = 0; i < 3; i++) await page.mouse.wheel(99999, 99999);
+  await page.waitForTimeout(300);
+  const edge = await state();
+  assert.ok(edge.view.ox + 2000 * edge.view.cell < 420, 'scrolled to the far edge, the wall shows past the paper');
+  assert.deepEqual(errors, [], 'no console errors on the biggest paper');
+  await page.close();
+  console.log('ok  biggest paper');
+}
 // Sadie's tail never touches the left or top edge of her sprite, whatever the wag (it used to be cut off).
 {
   const page = await browser.newPage();
