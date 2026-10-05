@@ -78,6 +78,7 @@ understands this code style, and fails loudly otherwise:
 The smoke test runs against both `index.html` and `dist/index.html`.
 `dist/artifact.html` is the same page without the html/head/body wrapper, for
 the Artifact tool. `dist/` is not committed; build it before publishing.
+Publishing rule (user, 2026-10-05): a task that changes the app in a PR republishes that build to the "(test)" artifact as a new version, unasked; when a PR merges to main, the main build goes to the main "Sadie's Studio" artifact. Keep the "(test)" title on the test page. Ids are in the project memory.
 
 ## Constraints that shape everything
 
