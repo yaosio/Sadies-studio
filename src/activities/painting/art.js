@@ -2,6 +2,8 @@
 // the peg for "hang it up", the door back to the room, and the wooden tray.
 // Drawn in code. Colors here are the art's own swatches (see docs/art-style.md).
 import { Px, mixh, rng } from '../../art/px.js';
+import { PAINT } from '../../art/palette.js';
+import { stampArt } from './stamps.js';
 
 export function mkPot(col){const p=new Px(22,24),dk=mixh(col,'#2a1840',.5),lt=mixh(col,'#ffffff',.5);
   for(let y=8;y<23;y++){const ins=y>19?y-19:0;for(let x=2+ins;x<20-ins;x++){const t=(x-2)/17;let c=t>.74?'#d4cbe8':t<.18?'#ffffff':'#f3efff';if(y>=13&&y<=16)c=t>.74?dk:t<.18?lt:col;p.p(x,y,c)}}
@@ -95,4 +97,42 @@ export function drawHandle(c, x, y, w, h, u, paint, chevron) {
   c.fillStyle = paint; c.fillRect(cx - 3 * u, cy - 3 * u, 6 * u, 6 * u);
   c.fillStyle = 'rgba(255,255,255,.5)'; c.fillRect(cx - 3 * u, cy - 3 * u, 2 * u, 2 * u);
   c.drawImage(chevron, x + w - 14 * u, cy - 2 * u, 5 * u * 1, 5 * u * 1);
+}
+
+// The three drawers on the bottom shelf: each is a wooden drawer front with a brass knob
+// and a little picture of what is inside (paints, a brush, a stamp), so it reads as a drawer.
+function mkDrawer(icon) {
+  const p = new Px(22, 24);
+  p.r(0, 5, 22, 18, '#6e3e1e'); p.r(1, 6, 20, 16, '#d48e4c'); p.r(1, 6, 20, 2, '#f2bc7c'); p.r(1, 20, 20, 2, '#b87438');
+  p.r(1, 8, 20, 1, '#4a2810'); // the gap above the drawer
+  p.r(4, 10, 14, 8, '#fff6e8'); p.r(4, 10, 14, 1, '#ffffff'); p.r(4, 17, 14, 1, '#d8c8b0'); // a paper label
+  icon(p);
+  p.r(8, 18, 6, 3, '#8a5a1e'); p.r(9, 19, 4, 1, '#ffd860'); p.r(9, 18, 4, 1, '#fff0a0'); // brass pull
+  return p.done();
+}
+export function mkDrawerPaints() {
+  return mkDrawer((p) => { [['#ec3b3b', 5], ['#ffd60a', 8], ['#3cc24a', 11], ['#2e7cf6', 14]].forEach(([c, x]) => { p.r(x, 12, 3, 3, c); p.r(x, 12, 1, 1, '#ffffff'); }); });
+}
+export function mkDrawerTools() {
+  return mkDrawer((p) => { p.ln(6, 16, 15, 12, '#e8504a', 2); p.r(14, 11, 3, 3, '#4b3a5e'); p.r(5, 15, 2, 2, '#c9d2e0'); });
+}
+export function mkDrawerStamps() {
+  return mkDrawer((p) => { p.r(10, 11, 2, 2, '#ec3b3b'); p.r(7, 13, 8, 3, '#ec3b3b'); p.r(8, 12, 1, 1, '#ec3b3b'); p.r(13, 12, 1, 1, '#ec3b3b'); p.r(10, 14, 2, 1, '#ffffff'); });
+}
+// A stamp's picture, standing on the shelf (id from stamps.js).
+export function mkStampThumb(id) {
+  const a = stampArt(id), p = new Px(a.w, a.h);
+  for (let i = 0; i < a.cells.length; i++) if (a.cells[i]) p.p(i % a.w, Math.floor(i / a.w), PAINT[a.cells[i] - 1].hex);
+  return p.done();
+}
+// How big the stamp is: three squares, the chosen size (1 to 3) in ink.
+export function mkStampSize(step) {
+  const p = new Px(22, 24);
+  const sizes = [4, 6, 8], xs = [1, 6, 13];
+  [0, 1, 2].forEach((i) => {
+    const s = sizes[i], on = i + 1 <= step, x = xs[i], y = 21 - s;
+    p.r(x, y, s, s, on ? '#8b4fe0' : '#d4cbe8');
+    p.r(x, y, s, 1, on ? '#b88cf0' : '#ece7f6');
+  });
+  p.outline('#4b3a5e'); return p.done();
 }

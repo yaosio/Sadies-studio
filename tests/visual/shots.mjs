@@ -44,6 +44,27 @@ for (const size of SIZES) {
   await page.evaluate(() => { const b = document.getElementById('bubble'); b.hidden = true; }); // speech timing is not what this checks
   await shot('painting-tray');
 
+  // the stamps drawer, with Sadie and Chooter each stamped once , and one more held down to show where it will land
+  const tapItem = async (k) => {
+    const it = await page.evaluate((key) => { const i = window.__studio.activity('painting')._tray().items.find((x) => x.k === key); return { x: i.hit.x + i.hit.w / 2, y: i.hit.y + i.hit.h / 2, S: window.__studio.debug().S }; }, k);
+    await page.mouse.click((it.x * it.S) / size.dpr, (it.y * it.S) / size.dpr);
+    await page.waitForTimeout(150);
+  };
+  const stampAt = async (fx, fy, hold) => { await page.mouse.move(size.width * fx, size.height * fy); await page.mouse.down(); await page.mouse.move(size.width * fx + 2, size.height * fy + 2); if (!hold) await page.mouse.up(); };
+  await tapItem('drawer:stamps');
+  await page.waitForFunction(() => window.__studio.activity('painting')._state().trayAnim >= 1);
+  await page.evaluate(() => { const b = document.getElementById('bubble'); b.hidden = true; });
+  await shot('painting-stamps');
+  await tapItem('stamp:sadie'); await stampAt(0.3, 0.2);
+  await page.evaluate(() => { document.getElementById('bubble').hidden = true; });
+  await page.mouse.click(((tray.tab.x + tray.tab.w / 2) * tray.S) / size.dpr, ((tray.H - tray.tab.h / 2) * tray.S) / size.dpr); await page.waitForTimeout(500);
+  await tapItem('stamp:chooter'); await stampAt(0.65, 0.25);
+  await page.mouse.click(((tray.tab.x + tray.tab.w / 2) * tray.S) / size.dpr, ((tray.H - tray.tab.h / 2) * tray.S) / size.dpr); await page.waitForTimeout(500);
+  await tapItem('stampSize'); await stampAt(0.5, 0.6, true);
+  await page.evaluate(() => { document.getElementById('bubble').hidden = true; });
+  await shot('painting-stamped');
+  await page.mouse.up();
+
   // the book, with a few paintings in it (fixed ones, so the picture is repeatable)
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => window.__studio.debug().mode === 'room');

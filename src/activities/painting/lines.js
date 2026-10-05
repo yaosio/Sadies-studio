@@ -11,6 +11,8 @@ export const PAINTING_LINES = {
     brushS: 'The little brush. For tiny details.', brushB: 'The big brush. For big ideas.',
     sponge: 'The sponge goes dab, dab, dab.', cloth: 'The cloth wipes paint away.',
   },
+  stamps: { sadie: "That's me. I'm very easy to draw.", chooter: 'Chooter! He would say hi, but he is a dog.' },
+  stampDone: ['Stamp!', 'Thump. Right where you wanted it.'],
   clearHint: 'Hold the bucket down to wipe the whole paper clean.',
   cleared: ['All clean. A fresh start!', 'Whoosh. Clean paper.'],
   alreadyClean: 'The paper is already clean.',

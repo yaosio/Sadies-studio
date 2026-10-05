@@ -7,10 +7,11 @@ import { PAPER, PAINT, WOOD_TRIM, SHADOW } from '../../art/palette.js';
 import { encodePainting, decodePainting } from '../../save/codec.js';
 import { pick, easeOut } from '../../engine/util.js';
 import { TOOLS, DEFAULT_TOOL } from './tools.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, peekTabs, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, putStamp, strokeLine, peekTabs, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
 import { fitRect, fitted } from './thumb.js';
-import { layoutTray, inRect } from './tray.js';
-import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, drawEdgeTab, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
+import { layoutTray, inRect, DEFAULT_DRAWER } from './tray.js';
+import { stampArt, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE } from './stamps.js';
+import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, drawEdgeTab, mkBack, mkChevron, mkDrawerPaints, mkDrawerTools, mkDrawerStamps, mkStampThumb, mkStampSize, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
 import { savePng } from './export.js';
@@ -36,7 +37,8 @@ export function createPainting(env) {
   let reopened = false; // the easel painting was just taken from the line or book
   let inBook = false, bookScroll = 0, bookPtr = null, lastDest = 'line'; // the book view; where the last hung painting went
   let hangingIndex = -1; // a painting still flying to the line
-  let tool = DEFAULT_TOOL, color = 0;
+  let tool = DEFAULT_TOOL, color = 0; // tool is a TOOLS key, or 'stamp'
+  let drawer = DEFAULT_DRAWER, stampId = STAMP_IDS[0], stampSize = DEFAULT_STAMP_SIZE; // the open drawer; the chosen stamp (not saved)
   const undoStack = []; // snapshots { w, h, cells } to go back to, newest last (not saved)
   let view = { cell: 1, ox: 0, oy: 0 }; // zoom and scroll: cell size, and where the paper's corner is on screen
   let anim = null; // a smooth move of the view
@@ -120,8 +122,8 @@ export function createPainting(env) {
   function hint(key, line) { if (hinted[key]) return; hinted[key] = true; say(line); }
 
   function refreshTray() {
-    const key = [W, H, u].join();
-    if (key !== trayKey) { trayKey = key; tray = layoutTray(W, H, u); }
+    const key = [W, H, u, drawer].join();
+    if (key !== trayKey) { trayKey = key; tray = layoutTray(W, H, u, drawer); }
   }
 
   function resize(w, h, unit) {
@@ -171,8 +173,11 @@ export function createPainting(env) {
     if (!stroke) return;
     const quick = stroke.len <= 1 && env.now() - stroke.t0 < 250;
     lastTap = quick ? { t: env.now(), x: stroke.x0, y: stroke.y0, before: stroke.before } : null; // a possible first half of a double tap
+    if (stroke.stamp) putStamp(current, stampArt(stampId, stampSize), stroke.at[0], stroke.at[1]); // lands where the finger lifts
     pushUndo({ w: current.w, h: current.h, cells: stroke.before });
-    stroke = null; version++; persist(); strokes++;
+    const stamped = stroke.stamp;
+    stroke = null; paperDirty = true; version++; persist(); strokes++;
+    if (stamped) { if (strokes === 1) say(LINES.first); else if (env.now() - lastSay > 4000) say(pick(LINES.stampDone)); return; }
     if (tool !== 'cloth') usedColors.add(color);
     const now = env.now();
     if (tool === 'cloth' && now - lastSay > 5000) { say(LINES.wipe); return; }
@@ -194,9 +199,15 @@ export function createPainting(env) {
     bumps[k] = env.now();
     if (k.startsWith('pot')) {
       color = +k.slice(3);
-      if (tool === 'cloth') tool = DEFAULT_TOOL;
+      if (tool === 'cloth' || tool === 'stamp') tool = DEFAULT_TOOL; // a stamp has its own colors
       env.sound.play('pot', color);
       say(LINES.colors[PAINT[color].name]);
+    } else if (k.startsWith('drawer:')) {
+      drawer = k.slice(7); trayKey = ''; refreshTray(); env.sound.play('tool'); // the shelf above changes to this drawer's things
+    } else if (k.startsWith('stamp:')) {
+      stampId = k.slice(6); tool = 'stamp'; env.sound.play('tool'); say(LINES.stamps[stampId]);
+    } else if (k === 'stampSize') {
+      stampSize = STAMP_SIZES[stampSize % STAMP_SIZES.length]; tool = 'stamp'; env.sound.play('tool');
     } else if (TOOLS[k]) {
       tool = k; env.sound.play('tool'); say(LINES.tools[k]);
     } else if (k === 'clear') {
@@ -247,6 +258,7 @@ export function createPainting(env) {
     trayOpen = false; // starting to paint tucks the tray away
     anim = null;
     stroke = { last: c, len: 0, before: current.cells.slice(), t0: t, x0: x, y0: y }; // before: lets a second finger or a double tap take the dab back
+    if (tool === 'stamp') { stroke.stamp = true; stroke.at = c; return; } // a stamp only shows where it will land until the finger lifts
     stamp(current, c[0], c[1], tool, color);
     paperDirty = true;
   }
@@ -270,6 +282,7 @@ export function createPainting(env) {
     if (!stroke) return;
     const c = cellAt(x, y, true);
     stroke.len++;
+    if (stroke.stamp) { stroke.at = c; return; }
     strokeLine(current, stroke.last, c, tool, color);
     stroke.last = c; paperDirty = true;
   }
@@ -467,6 +480,9 @@ export function createPainting(env) {
     if (k === 'brushB') return sprite('bb' + hex, () => mkBrush(true, hex));
     if (k === 'sponge') return sprite('sp' + hex, () => mkSponge(hex));
     if (k === 'cloth') return sprite('cloth', mkCloth);
+    if (k.startsWith('drawer:')) return sprite(k, { 'drawer:paints': mkDrawerPaints, 'drawer:tools': mkDrawerTools, 'drawer:stamps': mkDrawerStamps }[k]);
+    if (k.startsWith('stamp:')) return sprite(k, () => mkStampThumb(k.slice(6)));
+    if (k === 'stampSize') return sprite('stampSize' + stampSize, () => mkStampSize(stampSize));
     if (k === 'undo') return sprite('undo', mkUndo);
     if (k === 'clear') return sprite('clear', mkClear);
     return sprite('hang', mkHang);
@@ -478,8 +494,8 @@ export function createPainting(env) {
       drawTrayBack(c, 0, H - tray.panelH + off, W, tray.panelH, u);
       for (const s of tray.shelves) drawShelf(c, s.x, s.y + off, s.w, u);
       for (const it of tray.items) {
-        const img = itemSprite(it.k), sel = it.k === 'pot' + color || it.k === tool;
-        const bt = bumps[it.k] ? (now - bumps[it.k]) / 1000 : 9, bump = bt < 0.3 ? Math.round(Math.sin((bt / 0.3) * Math.PI) * 4 * u) : 0;
+        const img = itemSprite(it.k), sel = it.k === 'pot' + color || it.k === tool || it.k === 'drawer:' + drawer || (tool === 'stamp' && it.k === 'stamp:' + stampId);
+        const bt = bumps[it.k] ? (now - bumps[it.k]) / 1000 : 9, bump = bt >= 0 && bt < 0.3 ? Math.round(Math.sin((bt / 0.3) * Math.PI) * 4 * u) : 0;
         const w = img.width * u, h = img.height * u, x = Math.round(it.cx - w / 2), y = it.base - h - (sel ? 3 * u : 0) - bump + off;
         if (sel) { c.fillStyle = 'rgba(255,250,220,.55)'; c.fillRect(x - u, it.base + off - u, w + 2 * u, 2 * u); }
         c.drawImage(img, x, y, w, h);
@@ -549,6 +565,15 @@ export function createPainting(env) {
       else { c.fillRect(Math.round(place.x), Math.round(p), size, t); c.fillRect(Math.round(place.x + place.w - size), Math.round(p), size, t); }
     }
   }
+  // The stamp where it will land, a little see-through, while a finger is down.
+  function drawStampGhost(c) {
+    const art = stampArt(stampId, stampSize), k = place.cell, key = stampId;
+    const src = sprites['g' + key] || (sprites['g' + key] = mkStampThumb(stampId));
+    const x = place.x + (stroke.at[0] - (art.w >> 1)) * k, y = place.y + (stroke.at[1] - (art.h >> 1)) * k;
+    c.globalAlpha = 0.8;
+    c.drawImage(src, x, y, art.w * k, art.h * k);
+    c.globalAlpha = 1;
+  }
   function draw(c, now) {
     if (inBook) { drawBook(c); return; }
     const k = place.cell, covers = place.x <= k && place.y <= k && place.x + place.w >= W - k && place.y + place.h >= H - k; // within a cell counts: plain paper fills the rest
@@ -557,6 +582,7 @@ export function createPainting(env) {
     if (!covers) { c.fillStyle = SHADOW; c.fillRect(place.x + 2 * u, place.y + 2 * u, place.w, place.h); }
     c.drawImage(paperCanvas(), place.x, place.y, place.w, place.h);
     if (grow) drawPullCues(c);
+    if (stroke && stroke.stamp) drawStampGhost(c);
     const arrow = (t) => sprite('arrow' + t.side, () => mkArrow({ top: 'up', bottom: 'down', left: 'left', right: 'right' }[t.side]));
     c.globalAlpha = 0.9;
     for (const t of peekOn()) drawEdgeTab(c, t.x, t.y, t.w, t.h, u, arrow(t));
@@ -645,7 +671,7 @@ export function createPainting(env) {
     snapshot: paperCanvas, // full-size picture of the easel painting
     paperRect: () => place, // where the paper sits on screen when open
     boardFit: (bw, bh) => fitRect(current.w, current.h, bw, bh),
-    _state: () => ({ current, hung, book, inBook, bookScroll, tool, color, trayOpen, trayAnim, natural: naturalGrid(W, H), view, tabs: tabsOn().length, peek: peekOn().length }), // for tests
+    _state: () => ({ current, hung, book, inBook, bookScroll, tool, color, drawer, stampId, stampSize, trayOpen, trayAnim, natural: naturalGrid(W, H), view, tabs: tabsOn().length, peek: peekOn().length }), // for tests
     _tabs: () => tabsOn(),
     _peek: () => peekOn(),
     _tray: () => tray,

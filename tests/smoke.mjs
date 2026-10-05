@@ -101,12 +101,35 @@ for (const target of targets) {
   const click = async (k) => { tabs.items = await trayNow(); const it = tabs.items.find((i) => i.k === k); await page.mouse.click((it.hit.x + it.hit.w / 2) * tabs.S, (it.hit.y + it.hit.h / 2) * tabs.S); };
   await click('pot4');
   assert.equal((await st()).color, 4, 'blue pot picked');
+  assert.ok((await trayNow()).some((i) => i.k === 'drawer:stamps') && (await trayNow()).some((i) => i.k === 'undo'), 'the bottom shelf has the drawers and undo');
+  await click('drawer:tools');
   await click('sponge');
   assert.equal((await st()).tool, 'sponge');
 
   // painting a new stroke tucks the tray away
   await page.mouse.move(200, 150); await page.mouse.down(); await page.mouse.move(400, 160); await page.mouse.up();
   assert.equal((await st()).trayOpen, false, 'tray tucked away');
+
+  // stamps: open the stamps drawer, pick Chooter the dog, make him bigger. He shows where he will land
+  // while the finger is down and is only painted when it lifts; undo takes him back.
+  const cellsPainted = () => page.evaluate(() => window.__studio.activity('painting')._state().current.cells.filter(Boolean).length);
+  await page.waitForTimeout(400);
+  await page.mouse.click(tx, ty);
+  await page.waitForTimeout(400);
+  await click('drawer:stamps');
+  await click('stamp:chooter');
+  await click('stampSize');
+  const sst = await page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { tool: s.tool, id: s.stampId, size: s.stampSize, drawer: s.drawer }; });
+  assert.deepEqual(sst, { tool: 'stamp', id: 'chooter', size: 2, drawer: 'stamps' }, 'stamp chosen, bigger');
+  const beforeStamp = await cellsPainted();
+  await page.mouse.move(500, 300); await page.mouse.down(); await page.mouse.move(520, 320, { steps: 4 });
+  assert.equal(await cellsPainted(), beforeStamp, 'a stamp paints nothing while the finger is down');
+  await page.mouse.up();
+  assert.ok((await cellsPainted()) > beforeStamp + 100, 'the stamp lands when the finger lifts');
+  await page.keyboard.press('Control+z');
+  assert.equal(await cellsPainted(), beforeStamp, 'undo takes the whole stamp back in one step');
+  await page.mouse.move(500, 300); await page.mouse.down(); await page.mouse.up(); // and once more, to keep it
+  await page.waitForTimeout(400);
 
   // hang it up
   await page.waitForTimeout(400);

@@ -6,10 +6,11 @@ import { join, relative } from 'node:path';
 import { encodeCells, decodeCells, encodePainting, decodePainting } from '../src/save/codec.js';
 import { migrate, emptySave, CURRENT_VERSION } from '../src/save/migrate.js';
 import { createStore, openStore, KEY } from '../src/save/store.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, peekTabs, MAX_CELL } from '../src/activities/painting/grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, putStamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, peekTabs, MAX_CELL } from '../src/activities/painting/grid.js';
 import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
 import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
-import { layoutTray, ITEM_IDS } from '../src/activities/painting/tray.js';
+import { layoutTray, ITEM_IDS, DRAWER_IDS, itemsFor } from '../src/activities/painting/tray.js';
+import { STAMPS, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE, stampArt } from '../src/activities/painting/stamps.js';
 import { PAINT } from '../src/art/palette.js';
 import { chooseScale, uiUnit } from '../src/engine/view.js';
 import { clampCamX } from '../src/engine/camera.js';
@@ -206,13 +207,45 @@ test('thumbnails keep thin lines and letterbox', () => {
   assert.equal(f.length, 36 * 27);
 });
 
-test('tray fits the screen at every shape', () => {
+test('tray fits the screen at every shape, with every drawer open', () => {
   for (const [W, H] of [[216, 480], [307, 683], [640, 360], [900, 400]]) {
-    const u = 1, t = layoutTray(W, H, u);
-    assert.equal(t.items.length, ITEM_IDS.length);
-    assert.ok(t.panelH <= H * 0.3, `tray stays a small part of ${W}x${H}`);
-    for (const it of t.items) assert.ok(it.hit.x >= 0 && it.hit.x + it.hit.w <= W, 'item inside the screen');
+    for (const drawer of DRAWER_IDS) {
+      const u = 1, t = layoutTray(W, H, u, drawer);
+      assert.equal(new Set(t.items.map((i) => i.k)).size, t.items.length, 'no item twice');
+      for (const k of itemsFor(drawer)) assert.ok(t.items.some((i) => i.k === k), `${k} is on the tray (${W}x${H}, ${drawer})`);
+      assert.ok(t.panelH <= H * 0.3, `tray stays a small part of ${W}x${H} (${drawer})`);
+      for (const it of t.items) assert.ok(it.hit.x >= 0 && it.hit.x + it.hit.w <= W, 'item inside the screen');
+    }
   }
+  for (const k of ITEM_IDS) assert.ok(DRAWER_IDS.some((d) => itemsFor(d).includes(k)), `${k} is in some drawer`);
+});
+
+test('stamps are whole pictures in paint colors, and scale works', () => {
+  assert.ok(STAMP_IDS.includes('sadie') && STAMP_IDS.includes('chooter'));
+  for (const id of STAMP_IDS) {
+    const rows = STAMPS[id];
+    assert.ok(rows.every((r) => r.length === rows[0].length), `${id} is a rectangle`);
+    const a = stampArt(id);
+    assert.equal(a.w, rows[0].length); assert.equal(a.h, rows.length);
+    assert.ok(a.cells.every((v) => v >= 0 && v <= PAINT.length), `${id} uses only the paints`);
+    assert.ok(a.cells.some(Boolean));
+    const big = stampArt(id, 3);
+    assert.equal(big.w, a.w * 3); assert.equal(big.h, a.h * 3);
+    assert.equal(big.cells[4 * big.w + 5], a.cells[1 * a.w + 1], 'scaling repeats each cell');
+  }
+  assert.ok(STAMP_SIZES.includes(DEFAULT_STAMP_SIZE));
+});
+
+test('a stamp lands centered, leaves bare cells alone and is clipped at the edge', () => {
+  const p = newPainting(40, 40);
+  p.cells.fill(2);
+  const a = stampArt('sadie');
+  putStamp(p, a, 20, 20);
+  assert.ok(p.cells.some((v) => v === 10), 'white from the stamp');
+  assert.equal(p.cells[0], 2, 'far cells untouched');
+  assert.equal(p.cells[(20 - (a.h >> 1)) * 40 + 20 - (a.w >> 1)], 2, 'a see-through corner keeps the paint under it');
+  putStamp(p, a, 0, 0); putStamp(p, a, 39, 39); // half off the paper: no crash
+  assert.equal(p.cells.length, 1600);
 });
 
 test('scale is always a whole number and the view is big enough', () => {
@@ -244,6 +277,7 @@ test('room data is valid', () => {
 test('painting lines cover every color and tool', () => {
   for (const c of PAINT) assert.ok(PAINTING_LINES.colors[c.name], c.name);
   for (const t of ['brushS', 'brushB', 'sponge', 'cloth']) assert.ok(PAINTING_LINES.tools[t]);
+  for (const id of STAMP_IDS) assert.ok(PAINTING_LINES.stamps[id], id);
 });
 
 // The rule from docs/art-style.md: colors come from the palette file. Hex colors may
