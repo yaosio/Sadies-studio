@@ -8,7 +8,7 @@ Playwright; Chromium is in the cloud environment).
 
 1. **Logic tests** (`npm test`, `tests/logic.test.js`, no browser): save codec,
    every saved-data version loads, storage failures, painting tools and undo
-   math, where paintings move between line, book and delete, the book page layout, the chooser (buttons on screen, the hold), zoom range and view clamping, pull-out tabs, more paper, hanging shape, the IndexedDB store (with a fake database), thumbnails, tray fit with every drawer open, stamps (pictures, scale, flip, landing and clipping), integer scale, camera, room data validity, and
+   math, where paintings move between line, book and delete, the book page layout, the chooser (buttons on screen, the hold), zoom range and view clamping, pull-out tabs, more paper, hanging shape, the IndexedDB store (with a fake database), thumbnails, tray fit with every drawer open, stamps (pictures, scale, landing and clipping), integer scale, camera, room data validity, and
    the palette rule below.
 2. **Smoke test** (`npm run smoke`): in headless Chromium, load the app, tap
    the easel, check the paper fills the screen, paint, use the tray and its drawers, place a stamp (nothing paints until the finger lifts, one undo takes it back), hang it

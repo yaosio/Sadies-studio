@@ -17,11 +17,11 @@ export const ACTION_IDS = ['undo', 'clear', 'hang'];
 export const DRAWER_IDS = ['paints', 'tools', 'stamps'];
 export const DEFAULT_DRAWER = 'paints';
 const DRAWER_KEYS = DRAWER_IDS.map((d) => 'drawer:' + d);
-// What each drawer holds. Stamps: the pictures, then how big, then which way round.
+// What each drawer holds. Stamps: the pictures, then how big.
 export const DRAWER_ITEMS = {
   paints: PAINT.map((_, i) => 'pot' + i),
   tools: TOOL_IDS,
-  stamps: [...STAMP_IDS.map((s) => 'stamp:' + s), 'stampSize', 'stampFlip'],
+  stamps: [...STAMP_IDS.map((s) => 'stamp:' + s), 'stampSize'],
 };
 export const itemsFor = (drawer) => [...DRAWER_KEYS, ...DRAWER_ITEMS[drawer], ...ACTION_IDS];
 // Every item that can ever be on the tray (the fullest drawer decides when a screen is "wide").

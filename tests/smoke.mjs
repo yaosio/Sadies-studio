@@ -110,7 +110,7 @@ for (const target of targets) {
   await page.mouse.move(200, 150); await page.mouse.down(); await page.mouse.move(400, 160); await page.mouse.up();
   assert.equal((await st()).trayOpen, false, 'tray tucked away');
 
-  // stamps: open the stamps drawer, pick Chooser the dog, make him big and flip him. He shows where he will land
+  // stamps: open the stamps drawer, pick Chooser the dog, make him bigger. He shows where he will land
   // while the finger is down and is only painted when it lifts; undo takes him back.
   const cellsPainted = () => page.evaluate(() => window.__studio.activity('painting')._state().current.cells.filter(Boolean).length);
   await page.waitForTimeout(400);
@@ -119,9 +119,8 @@ for (const target of targets) {
   await click('drawer:stamps');
   await click('stamp:chooter');
   await click('stampSize');
-  await click('stampFlip');
-  const sst = await page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { tool: s.tool, id: s.stampId, size: s.stampSize, flip: s.stampFlip, drawer: s.drawer }; });
-  assert.deepEqual(sst, { tool: 'stamp', id: 'chooter', size: 2, flip: true, drawer: 'stamps' }, 'stamp chosen, bigger, flipped');
+  const sst = await page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { tool: s.tool, id: s.stampId, size: s.stampSize, drawer: s.drawer }; });
+  assert.deepEqual(sst, { tool: 'stamp', id: 'chooter', size: 2, drawer: 'stamps' }, 'stamp chosen, bigger');
   const beforeStamp = await cellsPainted();
   await page.mouse.move(500, 300); await page.mouse.down(); await page.mouse.move(520, 320, { steps: 4 });
   assert.equal(await cellsPainted(), beforeStamp, 'a stamp paints nothing while the finger is down');

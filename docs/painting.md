@@ -71,8 +71,7 @@ tabs on the paper.
 
 Everything the child can pick lives on the wooden tray, in **drawers** so the tray never
 grows past a few rows however many things are added. The bottom shelf never changes:
-three drawer knobs (**paints**: a paint board, **tools**: a brush, **stamps**: a rubber
-stamp) and **undo**, the **bucket** and **hang it up**. Tapping a drawer puts that
+three drawers, drawn as wooden drawer fronts with a brass pull and a small label picture (**paints**, **tools**, **stamps**) and **undo**, the **bucket** and **hang it up**. Tapping a drawer puts that
 drawer's things on the shelf above (on wide screens, in the same row between the knobs
 and the actions). The open drawer is remembered while the app runs, and starts as paints.
 On a narrow screen a drawer wraps after five things: paints take two rows, tools and stamps one. Pictures only.
@@ -105,7 +104,7 @@ Only one finger paints; a second touch is ignored so a resting palm does not.
 
 Two so far: **Sadie** and **Chooter** (the dog, black with a little white on the chest
 and front paws). The stamps drawer holds them, then **size** (three steps, shown as three
-growing squares: 1x, 2x, 3x the picture, starting at 1x) and **flip** (turn left to right).
+growing squares: 1x, 2x, 3x the picture, starting at 1x). There is no flip or rotate.
 Choosing a stamp makes it the tool until a paint pot or another tool is chosen.
 
 Press on the paper: the stamp shows, a little see-through, centered under the finger, and

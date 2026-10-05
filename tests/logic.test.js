@@ -220,7 +220,7 @@ test('tray fits the screen at every shape, with every drawer open', () => {
   for (const k of ITEM_IDS) assert.ok(DRAWER_IDS.some((d) => itemsFor(d).includes(k)), `${k} is in some drawer`);
 });
 
-test('stamps are whole pictures in paint colors, and flip and scale work', () => {
+test('stamps are whole pictures in paint colors, and scale works', () => {
   assert.ok(STAMP_IDS.includes('sadie') && STAMP_IDS.includes('chooter'));
   for (const id of STAMP_IDS) {
     const rows = STAMPS[id];
@@ -229,10 +229,9 @@ test('stamps are whole pictures in paint colors, and flip and scale work', () =>
     assert.equal(a.w, rows[0].length); assert.equal(a.h, rows.length);
     assert.ok(a.cells.every((v) => v >= 0 && v <= PAINT.length), `${id} uses only the paints`);
     assert.ok(a.cells.some(Boolean));
-    const big = stampArt(id, 3), f = stampArt(id, 1, true);
+    const big = stampArt(id, 3);
     assert.equal(big.w, a.w * 3); assert.equal(big.h, a.h * 3);
     assert.equal(big.cells[4 * big.w + 5], a.cells[1 * a.w + 1], 'scaling repeats each cell');
-    for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) assert.equal(f.cells[y * a.w + x] === 0, a.cells[y * a.w + a.w - 1 - x] === 0, 'flip mirrors the shape');
   }
   assert.ok(STAMP_SIZES.includes(DEFAULT_STAMP_SIZE));
 });

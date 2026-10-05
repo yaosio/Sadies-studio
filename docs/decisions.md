@@ -187,7 +187,7 @@ so) or **proposed** (a default picked, awaiting the user).
 - [proposed] A stamp is painted into the paint grid in its own colors when the finger lifts
   (a ghost shows where it will land), so undo, saving, the PNG and the clothesline need no
   change and the saved format stays version 2. Alternative: a separate movable stamp layer
-  (needs a saved-format change). Sizes 1x, 2x, 3x the picture, starting at 1x; flip, no rotate.
+  (needs a saved-format change). Sizes 1x, 2x, 3x the picture, starting at 1x; no flip, no rotate (user: the mirror button was unneeded, 2026-10-05).
 - [proposed] Sadie's gray in the stamp is a black and white checker (the palette has no
   gray). Chooter has a blue collar. Both are first drawings; the user may want changes.
 

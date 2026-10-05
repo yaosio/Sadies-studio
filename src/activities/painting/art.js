@@ -99,26 +99,29 @@ export function drawHandle(c, x, y, w, h, u, paint, chevron) {
   c.drawImage(chevron, x + w - 14 * u, cy - 2 * u, 5 * u * 1, 5 * u * 1);
 }
 
-// Drawer knobs on the bottom shelf: a paint board, a brush, a rubber stamp.
-export function mkDrawerPaints() {
+// The three drawers on the bottom shelf: each is a wooden drawer front with a brass knob
+// and a little picture of what is inside (paints, a brush, a stamp), so it reads as a drawer.
+function mkDrawer(icon) {
   const p = new Px(22, 24);
-  for (let y = 6; y < 20; y++) { const ins = y < 9 ? 9 - y : y > 16 ? y - 16 : 0; p.r(1 + ins, y, 20 - 2 * ins, 1, '#e8b070'); }
-  p.r(3, 8, 16, 1, '#f6d09a');
-  [[5, 9, 0], [10, 8, 2], [15, 10, 4], [6, 14, 3], [12, 14, 6], [16, 15, 1]].forEach(([x, y, i]) => p.r(x, y, 3, 3, PAINT[i].hex));
-  p.r(1, 15, 3, 3, null); p.outline('#6e3e1e'); return p.done();
+  p.r(0, 5, 22, 18, '#6e3e1e'); p.r(1, 6, 20, 16, '#d48e4c'); p.r(1, 6, 20, 2, '#f2bc7c'); p.r(1, 20, 20, 2, '#b87438');
+  p.r(1, 8, 20, 1, '#4a2810'); // the gap above the drawer
+  p.r(4, 10, 14, 8, '#fff6e8'); p.r(4, 10, 14, 1, '#ffffff'); p.r(4, 17, 14, 1, '#d8c8b0'); // a paper label
+  icon(p);
+  p.r(8, 18, 6, 3, '#8a5a1e'); p.r(9, 19, 4, 1, '#ffd860'); p.r(9, 18, 4, 1, '#fff0a0'); // brass pull
+  return p.done();
 }
-export function mkDrawerTools() { return mkBrush(true, '#ec3b3b'); }
+export function mkDrawerPaints() {
+  return mkDrawer((p) => { [['#ec3b3b', 5], ['#ffd60a', 8], ['#3cc24a', 11], ['#2e7cf6', 14]].forEach(([c, x]) => { p.r(x, 12, 3, 3, c); p.r(x, 12, 1, 1, '#ffffff'); }); });
+}
+export function mkDrawerTools() {
+  return mkDrawer((p) => { p.ln(6, 16, 15, 12, '#e8504a', 2); p.r(14, 11, 3, 3, '#4b3a5e'); p.r(5, 15, 2, 2, '#c9d2e0'); });
+}
 export function mkDrawerStamps() {
-  const p = new Px(22, 24);
-  p.r(8, 2, 6, 3, '#c97a3a'); p.r(9, 5, 4, 7, '#e09a58'); p.r(9, 5, 1, 7, '#f2bc7c');
-  p.r(3, 12, 16, 4, '#e09a58'); p.r(3, 12, 16, 1, '#f2bc7c');
-  p.r(2, 16, 18, 4, '#ec3b3b'); p.r(2, 16, 18, 1, '#ff8a7a');
-  p.r(10, 17, 2, 2, '#ffffff'); p.r(8, 18, 1, 1, '#ffffff'); p.r(13, 18, 1, 1, '#ffffff');
-  p.outline('#6e3e1e'); return p.done();
+  return mkDrawer((p) => { p.r(10, 11, 2, 2, '#ec3b3b'); p.r(7, 13, 8, 3, '#ec3b3b'); p.r(8, 12, 1, 1, '#ec3b3b'); p.r(13, 12, 1, 1, '#ec3b3b'); p.r(10, 14, 2, 1, '#ffffff'); });
 }
 // A stamp's picture, standing on the shelf (id from stamps.js).
-export function mkStampThumb(id, flip = false) {
-  const a = stampArt(id, 1, flip), p = new Px(a.w, a.h);
+export function mkStampThumb(id) {
+  const a = stampArt(id), p = new Px(a.w, a.h);
   for (let i = 0; i < a.cells.length; i++) if (a.cells[i]) p.p(i % a.w, Math.floor(i / a.w), PAINT[a.cells[i] - 1].hex);
   return p.done();
 }
@@ -132,11 +135,4 @@ export function mkStampSize(step) {
     p.r(x, y, s, 1, on ? '#b88cf0' : '#ece7f6');
   });
   p.outline('#4b3a5e'); return p.done();
-}
-// Which way round the stamp faces: two arrows pointing apart.
-export function mkStampFlip() {
-  const p = new Px(22, 24);
-  p.r(10, 4, 2, 18, '#d4cbe8');
-  for (let k = 0; k < 6; k++) { p.r(2 + k, 13 - k, 1, 2 * k + 1, '#3d78c4'); p.r(19 - k, 13 - k, 1, 2 * k + 1, '#3d78c4'); }
-  p.outline('#23406a'); return p.done();
 }

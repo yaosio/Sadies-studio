@@ -32,27 +32,30 @@ export const STAMPS = {
     '..kwwkwwwwkwwk..',
     '..kkkkkkkkkkkk..',
   ],
-  // Chooter the dog, standing, facing right: black, one ear straight up, a blue collar, a little white on the chest and the front paws.
+  // Chooter the dog, standing, facing right: black, one ear straight up with a pink inside, a blue collar, a little white on the chin, the chest and the front paws.
   chooter: [
-    '.............k........',
-    '............kk........',
-    '............kkk.......',
-    '.k..........kkkk......',
-    '.kk.........kkkkk.kk..',
-    '..kk.......kkkkkkkkkk.',
-    '..kk......kkkkkkkkkkkk',
-    '..kkkkk..kkkkkkkwkkkkk',
-    '..kkkkkkkkkkkkkkkkkkkk',
-    '..kkkkkkkkkkkbkkkkkkk.',
-    '..kkkkkkkkkkkbkkkkkkk.',
-    '..kkkkkkkkkkkbwwkkk...',
-    '..kkkkkkkkkkkbwwwk....',
-    '..kkkkkkkkkkkkwwwk....',
-    '...kkk.kkk..kkk.kkk...',
-    '...kkk.kkk..kkk.kkk...',
-    '...kkk.kkk..kkk.kkk...',
-    '...kkk.kkk..kkk.kkk...',
-    '...kkk.kkk..www.www...',
+    '..................k.......',
+    '.................kk.......',
+    '.................kpk......',
+    '................kkpk......',
+    '................kkppk.....',
+    '................kkppkk....',
+    '...............kkkkkkkk...',
+    '..............kkkkkkwkkk..',
+    '..............kkkkkkkkkkkk',
+    'k............kkkkkkkkkkkkk',
+    'k............kkkkkkkkkkkk.',
+    'kk...........kkkkkkkwwwk..',
+    '.k.........kkbbbbbkk......',
+    '.kk.kkkkkkkkkkkwwwkkk.....',
+    '..kkkkkkkkkkkkkwwwkkk.....',
+    '..kkkkkkkkkkkkkkkkkkk.....',
+    '...kkkkkkkkkkkkkkkkk......',
+    '...kkk.kkk....kkk.kkk.....',
+    '...kkk.kkk....kkk.kkk.....',
+    '...kkk.kkk....kkk.kkk.....',
+    '...kkk.kkk....kkk.kkk.....',
+    '...kkk.kkk....www.www.....',
   ],
 };
 export const STAMP_IDS = Object.keys(STAMPS);
@@ -60,15 +63,13 @@ export const STAMP_SIZES = [1, 2, 3]; // whole-number multiples of the picture
 export const DEFAULT_STAMP_SIZE = 1; // a fresh phone sheet is about 54 cells wide: the dog at 1x is under half of it, 3x only fits on big paper
 
 // The stamp as paint cells: { w, h, cells } with 0 for see-through. scale makes each
-// cell scale x scale cells; flip mirrors it left to right.
-export function stampArt(id, scale = 1, flip = false) {
+// cell scale x scale cells.
+export function stampArt(id, scale = 1) {
   const rows = STAMPS[id], bw = rows[0].length, bh = rows.length, w = bw * scale, h = bh * scale;
   const cells = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      let sx = Math.floor(x / scale);
-      const sy = Math.floor(y / scale);
-      if (flip) sx = bw - 1 - sx;
+      const sx = Math.floor(x / scale), sy = Math.floor(y / scale);
       const ch = rows[sy][sx];
       cells[y * w + x] = ch === '.' ? 0 : ch === 'd' ? ((sx + sy) % 2 ? 9 : 10) : VALUE[ch];
     }
