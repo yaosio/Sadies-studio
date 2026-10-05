@@ -13,7 +13,7 @@ import { fitRect, resample, fitted, viewWindow } from '../src/activities/paintin
 import { layoutTray, ITEM_IDS, DRAWER_IDS, itemsFor } from '../src/activities/painting/tray.js';
 import { STAMPS, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE, stampArt } from '../src/activities/painting/stamps.js';
 import { PAINT } from '../src/art/palette.js';
-import { chooseScale, uiUnit } from '../src/engine/view.js';
+import { chooseScale, uiUnit, touchSize } from '../src/engine/view.js';
 import { clampCamX } from '../src/engine/camera.js';
 import { studioRoom } from '../src/rooms/studio/room.js';
 import { STUDIO_LINES } from '../src/rooms/studio/lines.js';
@@ -520,4 +520,15 @@ test('backup import: oversize or crazy files are refused before anything is deco
   const heavy = { w: 2048, h: 2048, d: 'B4194304' };
   assert.equal(parseBackup(save({ current: null, hung: [], book: Array(30).fill(heavy) })), null, '30 full big papers is more than a phone should decode');
   assert.ok(parseBackup(save({ current: null, hung: [], book: Array(5).fill(heavy) })));
+});
+
+test('touch targets: tray items, the door and the book buttons are at least 44 CSS pixels at every screen size', () => {
+  for (const dpr of [1, 1.5, 2, 3]) for (const [cw, ch] of [[390, 780], [780, 390], [820, 1180], [1180, 820], [1440, 900]]) {
+    const S = chooseScale(Math.round(cw * dpr), Math.round(ch * dpr));
+    const u = uiUnit(S, dpr), touch = touchSize(S, dpr), css = (px) => (px * S) / dpr;
+    const t = layoutTray(Math.ceil(cw * dpr / S), Math.ceil(ch * dpr / S), u, 'paints', touch);
+    for (const it of t.items) assert.ok(css(Math.min(it.hit.w, it.hit.h)) >= 43.5, `S=${S} dpr=${dpr}: ${it.k} touch area ${css(Math.min(it.hit.w, it.hit.h)).toFixed(0)} CSS px`);
+    assert.ok(css(Math.min(t.back.w, t.back.h)) >= 43.5, `S=${S} dpr=${dpr}: door`);
+    assert.ok(css(Math.max(26 * u, touch)) >= 43.5, `S=${S} dpr=${dpr}: book buttons`);
+  }
 });

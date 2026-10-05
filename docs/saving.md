@@ -46,15 +46,22 @@ data without both.
   finishes, but is not guaranteed to.
 - Every read and write is guarded. Missing, full, blocked or corrupt storage
   means a fresh start and an app that still runs, never a crash.
+- A write that fails (full or blocked storage) makes Sadie say so once (`WORLD_LINES.saveFail`),
+  and again only after a good write in between. `store.onFail`, `store.isFailing`.
+- A record of another version (a newer app wrote it) is never overwritten: the app runs without it,
+  does not save over it, and Sadie says she cannot save. Also for a newer localStorage save.
+- The browser is asked to keep the data (`navigator.storage.persist()`, `main.js`), except in
+  Firefox, where that shows a prompt. Safari can still clear a site's data after weeks unused
+  in a normal tab; installed to the home screen is safer (inferred, not tested here).
 - With no save at all, two example paintings hang on the clothesline.
 
 ## Not built yet
 
-- Automatic backup (Drive or any cloud). Parked by the user; see the decision log.
+- Automatic backup (Drive or any cloud). Parked by the user; see the decision log. Research:
+  [drive-backup.md](drive-backup.md).
 - One record per painting (today one per activity). The book makes this matter
   sooner: every save rewrites the whole record, book included (each painting's
   text is encoded once and reused). Split it if saving ever feels slow.
-- Asking the browser to keep the data permanently (`navigator.storage.persist()`).
 
 ## Saving out
 
@@ -66,7 +73,7 @@ the line and the book). Plain text because it was tested on the user's phone: it
 takes text, PDF, CSV and HTML but refuses JSON and zip. Not a picture with hidden data: the user
 ruled that out, since recompression could ruin the backup unseen; text is never recompressed.
 Code: `src/save/backup.js` (pure), `export.js` (file side). On a phone it opens the share sheet,
-elsewhere (or if sharing fails) it downloads. Plain `.json` files are accepted back too. Bringing a file back **merges**: nothing is replaced or removed; a painting in the file that is not already here
+elsewhere (or if sharing fails) it downloads. Plain `.json` files are accepted back too. A file over 50 MB, 300 paintings or 100 million painted cells is refused (`save/backup.js`); the check counts painted cells from the text before decoding anything. Bringing a file back **merges**: nothing is replaced or removed; a painting in the file that is not already here
 (same size and paint) is added, one already here is skipped, and a painting changed since the
 backup is a different painting so both stay. Added ones hang on the line while it has room,
 then go to the book. A file that is not ours, or bare paper, adds nothing and Sadie says so.

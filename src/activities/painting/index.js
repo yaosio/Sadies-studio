@@ -2,7 +2,7 @@
 // edge, a door in the top-left corner to leave, and a small tab at the bottom
 // that opens the tool tray. In the room it supplies the paper on the easel and
 // the clothesline. See README.md in this folder.
-import { Px, clamp, K } from '../../art/px.js';
+import { Px, clamp } from '../../art/px.js';
 import { PAPER, PAINT, WOOD_TRIM, SHADOW } from '../../art/palette.js';
 import { encodePainting, decodePainting } from '../../save/codec.js';
 import { pick, easeOut } from '../../engine/util.js';
@@ -15,8 +15,8 @@ import { stampArt, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE } from './stamps.j
 import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, drawEdgeTab, mkBack, mkChevron, mkDrawerPaints, drawWall, mkDrawerTools, mkDrawerStamps, mkStampThumb, mkStampSize, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture, hangShape } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
-import { savePng, saveBackupText, pickFile } from './export.js';
-import { buildBackup, backupName, parseBackup, newFromBackup, MAX_FILE_BYTES } from '../../save/backup.js';
+import { savePng } from './export.js';
+import { createBackupActions } from './backup-actions.js';
 import { addFinished, lineToBook, bookToLine, remove, splitLoaded, lineIsFull, takeToEasel } from './collection.js';
 import { layoutBook, clampScroll, cardAt } from './book.js';
 import { drawBookPage, paintingCanvas, thumbFor, cardInner } from './book-art.js';
@@ -47,7 +47,7 @@ export function createPainting(env) {
   let pan = null, pinch = null, grow = null, lastPtr = null, lastTap = null, peekTap = null;
   let trayKey = '', clearHold = null; // clearHold: when a finger went down on the bucket
   const hinted = {};
-  let W = 0, H = 0, u = 1, place = null, tray = null;
+  let W = 0, H = 0, u = 1, touchPx = 0, place = null, tray = null;
   let version = 0, snap = null, movedAt = -1e9; // version: bumps when the painting changes; snap: picture of the whole paper; movedAt: when the view last scrolled (ticks show then)
   let active = false, trayOpen = false, trayAnim = 0;
   let stroke = null, strokes = 0, usedColors = new Set(), manyShown = false, lastSay = 0;
@@ -133,10 +133,11 @@ export function createPainting(env) {
 
   function refreshTray() {
     const key = [W, H, u, drawer].join();
-    if (key !== trayKey) { trayKey = key; tray = layoutTray(W, H, u, drawer); }
+    if (key !== trayKey) { trayKey = key; tray = layoutTray(W, H, u, drawer, touchPx); }
   }
 
-  function resize(w, h, unit) {
+  function resize(w, h, unit, touch = 0) {
+    touchPx = touch;
     W = w; H = h; u = unit;
     if (!current) freshPainting();
     if (active) setView(view); else startView();
@@ -389,32 +390,15 @@ export function createPainting(env) {
     lastBookPt = { x, y };
     bookPtr = { x, y, s0: bookScroll, i: btn ? -1 : cardAt(bookLay(), bookScroll, x, y), t0: env.now(), moved: false, btn: btn && btn.k };
   }
-  // Two small buttons in the book's top-right corner, drawn like the door: save everything as
-  // one file, and bring a file back in. They act on lift (the file picker needs a real tap).
-  function backupButtons() {
-    const s = 26 * u, g = 3 * u, y = 3 * u;
-    return [{ k: 'load', r: { x: W - 2 * (s + g), y, w: s, h: s } }, { k: 'backup', r: { x: W - (s + g), y, w: s, h: s } }];
-  }
-  async function backupAll() {
-    env.sound.play('hang'); say(LINES.backingUp);
-    persist();
-    await saveBackupText(JSON.stringify(buildBackup({ ...env.store.all().activities, [ID]: save() })), backupName());
-  }
-  // Merge a file into what is here: nothing is replaced (see save/backup.js).
-  async function restore() {
-    const text = await pickFile(MAX_FILE_BYTES);
-    if (text === null) return;
-    if (text === 'toobig') { env.sound.play('tool'); say(LINES.restoredBig); return; }
-    say(LINES.restoring);
-    const got = parseBackup(text);
-    if (!got) { env.sound.play('tool'); say(LINES.restoredBad); return; }
-    const have = [...hung, ...book, ...(current ? [current] : [])].map(enc);
-    const fresh = newFromBackup(got, have);
-    if (!fresh.length) { env.sound.play('tool'); say(LINES.restoredNone); return; }
-    for (const e of fresh) { const p = decodePainting(e); if (p) addFinished(hung, book, p); }
-    lineDirty = true; scrollBook(0); persist(); env.sound.play('pop');
-    say(fresh.length === 1 ? 'One painting came back. Welcome home.' : fresh.length + ' paintings came back. Welcome home.');
-  }
+  // Two small buttons in the book's top-right corner, drawn like the door (backup-actions.js).
+  const backup = createBackupActions({
+    env, say, lines: LINES, id: ID,
+    size: () => ({ W, u, touch: touchPx }),
+    snapshot: save, persist,
+    haveEncoded: () => [...hung, ...book, ...(current ? [current] : [])].map(enc),
+    add: (p) => { addFinished(hung, book, p); lineDirty = true; scrollBook(0); },
+  });
+  const backupButtons = backup.buttons;
   let lastBookPt = { x: 0, y: 0 };
   function bookMove(x, y) {
     lastBookPt = { x, y };
@@ -429,7 +413,7 @@ export function createPainting(env) {
     const b = bookPtr;
     bookPtr = null;
     if (b && b.btn) { // lifted on the button it landed on
-      if (backupButtons().some((o) => o.k === b.btn && inRect(o.r, lastBookPt.x, lastBookPt.y))) { if (b.btn === 'backup') backupAll(); else restore(); }
+      if (backupButtons().some((o) => o.k === b.btn && inRect(o.r, lastBookPt.x, lastBookPt.y))) backup.run(b.btn);
       return;
     }
     if (b && !b.moved && b.i >= 0) { // a tap: paint on this one
@@ -480,7 +464,7 @@ export function createPainting(env) {
     c.drawImage(door, 3 * u, 3 * u, door.width * u, door.height * u);
     for (const b of backupButtons()) {
       const ic = sprite(b.k === 'backup' ? 'i-saveall' : 'i-load', b.k === 'backup' ? mkSaveAllIcon : mkLoadIcon), k = u;
-      c.drawImage(ic, b.r.x + Math.round((b.r.w - ic.width * k) / 2), b.r.y + Math.round((b.r.h - ic.height * k) / 2), ic.width * k, ic.height * k);
+      c.drawImage(ic, b.v.x + Math.round((b.v.w - ic.width * k) / 2), b.v.y + Math.round((b.v.h - ic.height * k) / 2), ic.width * k, ic.height * k);
     }
     c.globalAlpha = 1;
     chooser.draw(c);

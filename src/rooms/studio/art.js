@@ -261,7 +261,6 @@ function sheetPiano(p,x0,x1){
 function upperDecor(p){
   const free=LY-16;
   if(free>40){
-    const R=rng(77);
     [[430,1290],[30,390],[1340,1700]].forEach(([x0,x1],ri)=>{const y0=16+Math.round((free-34)/2),C=ri===0?['#ff6fb5','#ffd23f','#2e7cf6','#3cc24a','#8b4fe0','#ff8c1a']:['#ffffff','#ffd23f'];
       const sag=x=>y0+Math.round(12*Math.sin((x-x0)/(x1-x0)*Math.PI));
       for(let x=x0;x<=x1;x++)p.p(x,sag(x),'#7a5a48');

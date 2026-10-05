@@ -11,6 +11,8 @@ Full-screen paper activity. Product rules: [docs/painting.md](../../../docs/pain
   layout, hit boxes and what each drawer holds (pure).
 - `art.js`: pot, brush, sponge, cloth, peg, door, drawer knob and tray drawing.
   `clothesline-art.js`: the line with its frames. `examples.js`: first-run paintings.
+- `backup-actions.js`: the book's two corner buttons (save everything, bring a file back; merged).
+  `export.js`: PNG and file saving (share sheet, download) and the file picker.
 - `lines.js`: everything Sadie says while painting.
 - The book (paintings that did not fit on the line): `collection.js` (moving paintings
   between line, book and nowhere; pure), `book.js` (card layout; pure), `book-art.js`

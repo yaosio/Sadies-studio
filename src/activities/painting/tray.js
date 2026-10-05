@@ -29,7 +29,7 @@ export const ITEM_IDS = [...DRAWER_KEYS, ...DRAWER_ITEMS.paints, ...DRAWER_ITEMS
 const WIDEST = DRAWER_KEYS.length + DRAWER_ITEMS.paints.length + ACTION_IDS.length;
 const PER_ROW = 5; // on a narrow screen a drawer wraps to a second row after five things (the pots take two)
 
-export function layoutTray(W, H, u, drawer = DEFAULT_DRAWER) {
+export function layoutTray(W, H, u, drawer = DEFAULT_DRAWER, touch = 0) { // touch: canvas pixels that make 44 CSS px (touch areas never go below it)
   const wide = W >= (WIDEST * SLOT + 16) * u;
   const fixed = [...DRAWER_KEYS, ...ACTION_IDS], content = DRAWER_ITEMS[drawer];
   let lines; // the items on each shelf row, top row first
@@ -49,7 +49,8 @@ export function layoutTray(W, H, u, drawer = DEFAULT_DRAWER) {
     const base = rowBase(row); // a short row is centered
     line.forEach((k, i) => {
       const cx = Math.round(W / 2 + (i - (line.length - 1) / 2) * pitch);
-      items.push({ k, cx, base, hit: { x: cx - 13 * u, y: base - 28 * u, w: 26 * u, h: 34 * u } });
+      const hw = Math.max(26 * u, touch), hh = Math.max(34 * u, touch);
+      items.push({ k, cx, base, hit: { x: Math.round(cx - hw / 2), y: Math.round(base - 28 * u - (hh - 34 * u) / 2), w: hw, h: hh } });
     });
   });
   const shelves = [];
@@ -58,7 +59,7 @@ export function layoutTray(W, H, u, drawer = DEFAULT_DRAWER) {
   return {
     u, rows, panelH, items, shelves, drawer,
     tab: { x: Math.round((W - tabW) / 2), w: tabW, h: tabH, hitPad: 3 * u },
-    back: { x: 0, y: 0, w: 32 * u, h: 36 * u }, // the door, top left
+    back: { x: 0, y: 0, w: Math.max(32 * u, touch + 3 * u), h: Math.max(36 * u, touch + 3 * u) }, // the door, top left
   };
 }
 

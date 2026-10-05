@@ -6,6 +6,7 @@ Playwright; Chromium is in the cloud environment).
 
 ## Layers
 
+0. **Lint** (`npm run lint`, `eslint.config.js`): mistakes only (undefined or unused names, duplicate keys, `==`). Part of `npm run check`.
 1. **Logic tests** (`npm test`, `tests/logic.test.js`, no browser): save codec,
    every saved-data version loads, storage failures, painting tools and undo
    math, where paintings move between line, book and delete, the book page layout, the chooser (buttons on screen, the hold), zoom range and view clamping, pull-out tabs, more paper, hanging shape, the IndexedDB store (with a fake database), thumbnails, tray fit with every drawer open, stamps (pictures, scale, landing and clipping), integer scale, camera, room data validity, and
@@ -33,11 +34,18 @@ Playwright; Chromium is in the cloud environment).
 - Pixel scale and cell size are always integers; the paper covers the screen.
 - The tray stays a small part of the screen.
 
+4. **Other engines** (`BROWSER=webkit npm run engines`, `tests/engines.mjs`): starts, paints, saves and reloads
+   with no errors, in WebKit (Safari's engine) or Firefox. In CI WebKit runs as an advisory job.
+
 ## CI
 
-`.github/workflows/check.yml` runs `npm run check` on every PR and uploads
-screenshot diffs if it fails.
+`.github/workflows/check.yml` runs `npm run check` (lint included) on every PR and uploads
+screenshot diffs if it fails; actions are pinned to commit hashes and tools installed with `npm ci`.
 
 ## Not covered yet
 
-Real touch devices, Safari and Firefox (Chromium only), sound output.
+Real touch devices, the full smoke test outside Chromium, sound output.
+
+## Known test trap
+
+Playwright's `filechooser` listener must be armed and given a moment before the tap that opens the picker; tapping in the same instant loses the event about one time in three. The app was never at fault (this was the old "flaky load button").

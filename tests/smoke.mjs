@@ -223,11 +223,13 @@ for (const target of targets) {
   assert.equal(backup.activities.painting.book.length, 1, 'and the book');
   backup.activities.painting.book.push({ w: 5, h: 3, d: 'B3C4D' }); // one painting this device does not have
   await page.waitForTimeout(400); pt = await corner('load');
-  let chooserEv = null;
-  for (let tries = 0; tries < 3 && !chooserEv; tries++) {
-    [chooserEv] = await Promise.all([page.waitForEvent('filechooser', { timeout: 4000 }).catch(() => null), page.mouse.click(pt.x, pt.y)]);
-    if (!chooserEv) console.log(`${target}: load button needed try ${tries + 2}`);
-  }
+  // Arm the file-chooser listener and let Playwright finish switching interception on BEFORE the tap:
+  // tapping in the same instant loses the event about one time in three (the app opens the picker every
+  // time; checked by counting input.click() calls). That race was the old "flaky load button".
+  const chooserWait = page.waitForEvent('filechooser', { timeout: 4000 }).catch(() => null);
+  await page.waitForTimeout(150);
+  await page.mouse.click(pt.x, pt.y);
+  const chooserEv = await chooserWait;
   assert.ok(chooserEv, `${target}: the load button opens the file picker`);
   await chooserEv.setFiles({ name: 'backup.txt', mimeType: 'text/plain', buffer: Buffer.from(JSON.stringify(backup)) });
   for (let i = 0; i < 40 && (await state()).book < 2; i++) await page.waitForTimeout(50);
