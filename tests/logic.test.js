@@ -457,3 +457,22 @@ test('big paintings save small and load again', () => {
   const g = q.resized(10, 20, 0, 0); // paint that sits in tiles shifted by growth
   assert.deepEqual(decodePainting(encodePainting(g)).toDense(), g.toDense(), 'and after growing the paper');
 });
+
+test('backup: everything in one file, and a file merges into what is here', async () => {
+  const { buildBackup, backupName, parseBackup, newFromBackup } = await import('../src/save/backup.js');
+  const a = { w: 3, h: 2, d: 'B2A4' }, b = { w: 3, h: 2, d: 'C2A4' }, c = { w: 3, h: 2, d: 'D2A4' };
+  const file = JSON.stringify(buildBackup({ painting: { current: c, hung: [a], book: [b] }, music: { songs: [1] } }, new Date('2026-10-05T12:00:00Z')));
+  assert.equal(backupName(new Date('2026-10-05T12:00:00Z')), 'sadies-studio-backup-2026-10-05.txt');
+  assert.deepEqual(JSON.parse(file).activities.music, { songs: [1] }, 'other activities ride along');
+  const got = parseBackup(file);
+  assert.deepEqual(got, { current: c, hung: [a], book: [b] });
+  // the same painting is not added twice; changed ones and new ones are; nothing is removed
+  assert.deepEqual(newFromBackup(got, [a]), [b, c]);
+  assert.deepEqual(newFromBackup(got, [a, b, c]), []);
+  assert.deepEqual(newFromBackup({ current: null, hung: [{ w: 3, h: 2, d: 'A6' }], book: [] }, []), []); // bare paper is not worth keeping
+  // old saves (mockup v1, a plain v2 save) load too; junk does not
+  assert.ok(parseBackup(JSON.stringify(fixture('save-v2.json'))));
+  assert.ok(parseBackup(JSON.stringify(fixture('save-v1.json'))));
+  for (const bad of ['', 'nope', '[]', '{"a":1}', '{"version":2,"activities":{}}']) assert.equal(parseBackup(bad), null);
+  assert.deepEqual(parseBackup(JSON.stringify({ version: 2, activities: { painting: { current: { w: 0 }, hung: [a, 5], book: 'x' } } })), { current: null, hung: [a], book: [] });
+});

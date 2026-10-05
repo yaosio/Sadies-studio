@@ -2,7 +2,7 @@
 // reload, and check it all survived with no console errors. `npm run smoke`.
 // Runs against the source (index.html) and the single-file build (dist/index.html).
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { serve } from './helpers/server.mjs';
 import { launch } from './helpers/playwright.mjs';
 
@@ -212,6 +212,28 @@ for (const target of targets) {
   await waitMode('painting');
   assert.equal((await state()).inBook, true, `${target}: tapping the book opens the book`);
   await page.waitForTimeout(300);
+
+  // the book's two corner buttons: save everything as one file, and merge a file back in
+  const corner = async (k) => { const sc = await S(), r = await page.evaluate((k) => window.__studio.activity('painting')._book().buttons.find((b) => b.k === k).r, k); return { x: (r.x + r.w / 2) * sc, y: (r.y + r.h / 2) * sc }; };
+  let pt = await corner('backup');
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 10000 }), page.mouse.click(pt.x, pt.y)]);
+  assert.match(dl.suggestedFilename(), /^sadies-studio-backup-\d{4}-\d\d-\d\d\.txt$/, `${target}: save everything gives one backup text file`);
+  const backup = JSON.parse(readFileSync(await dl.path(), 'utf8'));
+  assert.equal(backup.activities.painting.hung.length, 13, 'the backup holds the whole line');
+  assert.equal(backup.activities.painting.book.length, 1, 'and the book');
+  backup.activities.painting.book.push({ w: 5, h: 3, d: 'B3C4D' }); // one painting this device does not have
+  await page.waitForTimeout(400); pt = await corner('load');
+  let chooserEv = null;
+  for (let tries = 0; tries < 3 && !chooserEv; tries++) {
+    [chooserEv] = await Promise.all([page.waitForEvent('filechooser', { timeout: 4000 }).catch(() => null), page.mouse.click(pt.x, pt.y)]);
+    if (!chooserEv) console.log(`${target}: load button needed try ${tries + 2}`);
+  }
+  assert.ok(chooserEv, `${target}: the load button opens the file picker`);
+  await chooserEv.setFiles({ name: 'backup.txt', mimeType: 'text/plain', buffer: Buffer.from(JSON.stringify(backup)) });
+  for (let i = 0; i < 40 && (await state()).book < 2; i++) await page.waitForTimeout(50);
+  st = await state();
+  assert.deepEqual([st.hung, st.book], [13, 2], `${target}: importing merges: what was here stays, only the new painting is added`);
+  await page.evaluate(() => { window.__studio.activity('painting')._state().book.pop(); }); // back to one, for the checks below
 
   // hold a painting in the book: save, hang, delete
   const card = await page.evaluate(() => { const c = window.__studio.activity('painting')._book().layout.cards[0], d = window.__studio.debug(); return { x: (c.x + c.w / 2) * d.S, y: (c.y + c.h / 2) * d.S }; });

@@ -50,7 +50,7 @@ data without both.
 
 ## Not built yet
 
-- Backup or restore across devices.
+- Automatic backup (Drive or any cloud). Parked by the user; see the decision log.
 - One record per painting (today one per activity). The book makes this matter
   sooner: every save rewrites the whole record, book included (each painting's
   text is encoded once and reused). Split it if saving ever feels slow.
@@ -58,7 +58,29 @@ data without both.
 
 ## Saving out
 
+**Everything in one file.** On the book's page two small buttons sit in the top-right
+corner (pictures only, like the door): **save everything** (a stack of papers) and **bring
+a file back** (an up arrow). Save everything writes `sadies-studio-backup-YYYY-MM-DD.txt`: the backup JSON as plain text (an
+ordinary version-2 save plus `{ app, kind: 'backup', saved }`, with every activity; today the easel,
+the line and the book). Plain text because it was tested on the user's phone: its share sheet
+takes text, PDF, CSV and HTML but refuses JSON and zip. Not a picture with hidden data: the user
+ruled that out, since recompression could ruin the backup unseen; text is never recompressed.
+Code: `src/save/backup.js` (pure), `export.js` (file side). On a phone it opens the share sheet,
+elsewhere (or if sharing fails) it downloads. Plain `.json` files are accepted back too. Bringing a file back **merges**: nothing is replaced or removed; a painting in the file that is not already here
+(same size and paint) is added, one already here is skipped, and a painting changed since the
+backup is a different painting so both stay. Added ones hang on the line while it has room,
+then go to the book. A file that is not ours, or bare paper, adds nothing and Sadie says so.
+Old saves (version 1 mockup, plain version 2) are accepted as backups too. The backup carries every
+activity's saved state, so a new activity rides along without changes; bringing it back needs a
+merge written for it next to the painting one (`parseBackup`/`newFromBackup` only merge paintings
+today). Any new saved painting field must also be carried by `parseBackup`.
+
+**Where files go.** On a phone or tablet (coarse pointer and a browser that can share files)
+the system **share sheet** opens, so the parent picks Drive, Files, messages and so on . Elsewhere
+(desktop) it downloads as before; so does anything where sharing is blocked or fails. Inside an
+artifact the host's own `downloads` save is the fallback. The picture saves (below) and the backup use the same path.
+
 Long-press (about 0.65 s) a hung painting in the room (or a card in the book) and
-choose the save button: sparkles, a sound, and the painting is offered as a PNG (`sadies-painting-N.png`, each cell a whole-number
+choose the save button: sparkles, a sound, and the painting is offered (share sheet on a phone, download on desktop) as a PNG (`sadies-painting-N.png`, each cell a whole-number
 square, about 1600 px on the long side). Code: `src/activities/painting/export.js`.
 Inside an artifact the host shows its own confirmation (`downloads` capability).

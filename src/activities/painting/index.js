@@ -15,12 +15,13 @@ import { stampArt, STAMP_IDS, STAMP_SIZES, DEFAULT_STAMP_SIZE } from './stamps.j
 import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, drawEdgeTab, mkBack, mkChevron, mkDrawerPaints, drawWall, mkDrawerTools, mkDrawerStamps, mkStampThumb, mkStampSize, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture, hangShape } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
-import { savePng } from './export.js';
+import { savePng, saveBackupText, pickFile } from './export.js';
+import { buildBackup, backupName, parseBackup, newFromBackup } from '../../save/backup.js';
 import { addFinished, lineToBook, bookToLine, remove, splitLoaded, lineIsFull, takeToEasel } from './collection.js';
 import { layoutBook, clampScroll, cardAt } from './book.js';
 import { drawBookPage, paintingCanvas, thumbFor, cardInner } from './book-art.js';
 import { createChooser } from '../../ui/chooser.js';
-import { mkSaveIcon, mkTrashIcon, mkBookIcon, drawHoldRing, holdRingSpot } from '../../ui/chooser-art.js';
+import { mkSaveIcon, mkSaveAllIcon, mkLoadIcon, mkTrashIcon, mkBookIcon, drawHoldRing, holdRingSpot } from '../../ui/chooser-art.js';
 import { PAINTING_LINES as LINES } from './lines.js';
 import { SPARK } from '../../art/effects.js';
 
@@ -384,9 +385,38 @@ export function createPainting(env) {
     refreshTray();
     if (chooser.down(x, y)) return;
     if (inRect(tray.back, x, y)) { env.sound.play('tab'); leave(); return; }
-    bookPtr = { x, y, s0: bookScroll, i: cardAt(bookLay(), bookScroll, x, y), t0: env.now(), moved: false };
+    const btn = backupButtons().find((b) => inRect(b.r, x, y));
+    lastBookPt = { x, y };
+    bookPtr = { x, y, s0: bookScroll, i: btn ? -1 : cardAt(bookLay(), bookScroll, x, y), t0: env.now(), moved: false, btn: btn && btn.k };
   }
+  // Two small buttons in the book's top-right corner, drawn like the door: save everything as
+  // one file, and bring a file back in. They act on lift (the file picker needs a real tap).
+  function backupButtons() {
+    const s = 26 * u, g = 3 * u, y = 3 * u;
+    return [{ k: 'load', r: { x: W - 2 * (s + g), y, w: s, h: s } }, { k: 'backup', r: { x: W - (s + g), y, w: s, h: s } }];
+  }
+  async function backupAll() {
+    env.sound.play('hang'); say(LINES.backingUp);
+    persist();
+    await saveBackupText(JSON.stringify(buildBackup({ ...env.store.all().activities, [ID]: save() })), backupName());
+  }
+  // Merge a file into what is here: nothing is replaced (see save/backup.js).
+  async function restore() {
+    const text = await pickFile();
+    if (text === null) return;
+    say(LINES.restoring);
+    const got = parseBackup(text);
+    if (!got) { env.sound.play('tool'); say(LINES.restoredBad); return; }
+    const have = [...hung, ...book, ...(current ? [current] : [])].map(enc);
+    const fresh = newFromBackup(got, have);
+    if (!fresh.length) { env.sound.play('tool'); say(LINES.restoredNone); return; }
+    for (const e of fresh) { const p = decodePainting(e); if (p) addFinished(hung, book, p); }
+    lineDirty = true; scrollBook(0); persist(); env.sound.play('pop');
+    say(fresh.length === 1 ? 'One painting came back. Welcome home.' : fresh.length + ' paintings came back. Welcome home.');
+  }
+  let lastBookPt = { x: 0, y: 0 };
   function bookMove(x, y) {
+    lastBookPt = { x, y };
     if (chooser.isOpen()) { chooser.move(x, y); return; }
     const b = bookPtr;
     if (!b) return;
@@ -397,6 +427,10 @@ export function createPainting(env) {
     if (chooser.isOpen()) { bookChoice(chooser.up()); return; }
     const b = bookPtr;
     bookPtr = null;
+    if (b && b.btn) { // lifted on the button it landed on
+      if (backupButtons().some((o) => o.k === b.btn && inRect(o.r, lastBookPt.x, lastBookPt.y))) { if (b.btn === 'backup') backupAll(); else restore(); }
+      return;
+    }
     if (b && !b.moved && b.i >= 0) { // a tap: paint on this one
       const p = takeToEasel(book, b.i, current, isBlank(current));
       if (p) { putOnEasel(p); env.edit(); }
@@ -443,6 +477,10 @@ export function createPainting(env) {
     const door = sprite('back', mkBack);
     c.globalAlpha = 0.8;
     c.drawImage(door, 3 * u, 3 * u, door.width * u, door.height * u);
+    for (const b of backupButtons()) {
+      const ic = sprite(b.k === 'backup' ? 'i-saveall' : 'i-load', b.k === 'backup' ? mkSaveAllIcon : mkLoadIcon), k = u;
+      c.drawImage(ic, b.r.x + Math.round((b.r.w - ic.width * k) / 2), b.r.y + Math.round((b.r.h - ic.height * k) / 2), ic.width * k, ic.height * k);
+    }
     c.globalAlpha = 1;
     chooser.draw(c);
   }
@@ -695,6 +733,6 @@ export function createPainting(env) {
     _tabs: () => tabsOn(),
     _peek: () => peekOn(),
     _tray: () => tray,
-    _book: () => ({ layout: bookLay(), scroll: bookScroll, chooser: chooser.isOpen(), rects: chooser._rects() }),
+    _book: () => ({ layout: bookLay(), scroll: bookScroll, chooser: chooser.isOpen(), rects: chooser._rects(), buttons: backupButtons() }),
   };
 }

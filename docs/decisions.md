@@ -205,6 +205,20 @@ so) or **proposed** (a default picked, awaiting the user).
   (needs a saved-format change). Sizes 1x, 2x, 3x the picture, starting at 1x; no flip, no rotate (user: the mirror button was unneeded, 2026-10-05).
 - [proposed] Sadie's gray in the stamp is a black and white checker (the palette has no
   gray). Chooter has a blue collar. Both are first drawings; the user may want changes.
+- [confirmed] Saving: on a phone or tablet it opens the system share sheet; on desktop it
+  downloads as before (user, 2026-10-05). Falls back to download if sharing is unavailable.
+- [confirmed] A "save everything" file holds all paintings in one file that can be brought
+  back later; single PNG saves stay (user, 2026-10-05). Importing merges (user thought it
+  possible; proposed rule below).
+- [proposed] Import never replaces or deletes: paintings not already here are added (line
+  first, then book), identical ones are skipped, changed ones stay as separate copies. The
+  two buttons live in the book's top-right corner, no hold needed since nothing is lost.
+  Backup stays manual (a parent saves a file), not automatic.
+- [confirmed] The backup is not a picture with hidden data: a recompressed picture could silently
+  lose the data while looking like a good backup (user, 2026-10-05).
+- [confirmed] The backup is a plain `.txt` file holding the backup JSON: on the user's phone the share
+  sheet takes text, PDF, CSV and HTML but not JSON or zip (user tested, 2026-10-05). Text is never
+  recompressed. Shared on phones, downloaded elsewhere.
 
 ## Open questions
 
