@@ -89,13 +89,31 @@ Only one finger paints; a second touch is ignored so a resting palm does not.
 
 Finished paintings hang on a clothesline in the room, with pegs, on the wall
 behind everything: the whole easel (frame and legs) and Sadie are in front of
-them (the room draws the easel again over the line, `paintFront`). Up to 13; the
-oldest is dropped past that. Each hangs at 36 art pixels
+them (the room draws the easel again over the line, `paintFront`). Up to 13; when
+it is full a newly hung painting goes into the book instead, so nothing is ever
+dropped. Each hangs at 36 art pixels
 wide and as tall as its shape says (thin lines survive shrinking). Wide ones are
 shorter. Tall ones drop down; past about 84 pixels the rest is **rolled up** with
 a ribbon at the bottom. The roll is only how it is drawn: nothing is cut from the
 saved painting or the PNG. Tapping one makes Sadie comment. The first time the app
 opens, two example paintings hang there.
+
+**Hold a hung painting** (about 0.65 s): the rest of the screen dims and three big
+wooden buttons, pictures only, appear under it: **save** (a down arrow, offers the
+PNG), **to the book** (a closed book), **delete** (a trash can). Delete has no undo,
+so the trash must be *held* (about 0.9 s, red water rises in it, like the bucket); a
+tap only makes Sadie say to hold it. A tap anywhere else closes the choices.
+
+## The book
+
+A big book standing on the floor left of the easel holds every painting that did not
+fit on the line (any number, oldest first). Tap it like the easel: the camera glides
+in and the book's page fills the whole screen: small cards in columns, drag or wheel
+to scroll, the door top-left leaves. Tap a card and Sadie comments. **Hold a card**
+for the same kind of choices: **save**, **hang** (the peg; it flies to the line; with
+the line full it is dimmed and Sadie says the line is full, nothing moves) and
+**delete** (held). Code: `book.js` (layout, pure), `book-art.js` (drawing),
+`collection.js` (where paintings move, pure), the chooser in `src/ui/`.
 
 ## Autosave
 

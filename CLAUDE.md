@@ -12,7 +12,7 @@ a cold session needs must be written down here or in the linked docs.
 
 First version built: the studio room (drag to look around), gliding in to the
 easel, full-screen painting, "hang it up" to the clothesline, autosave, sound.
-Other room objects only make Sadie talk. The look comes from the approved
+The clothesline holds 13; past that paintings go into the book on the floor. Other room objects only make Sadie talk. The look comes from the approved
 mockup ([docs/mockup.md](docs/mockup.md)).
 
 ## Stack and commands
@@ -38,7 +38,7 @@ Open only the file you need. Do not read them all.
 | [docs/design.md](docs/design.md) | you need to know what the app is, who it is for, or what was ruled out |
 | [docs/art-style.md](docs/art-style.md) | you draw, change or add any visual |
 | [docs/world.md](docs/world.md) | you touch the room, camera, doorways, Sadie or her speech |
-| [docs/painting.md](docs/painting.md) | you touch the easel, canvas, tools, paints or the clothesline |
+| [docs/painting.md](docs/painting.md) | you touch the easel, canvas, tools, paints, the clothesline or the book |
 | [docs/architecture.md](docs/architecture.md) | you add a room or activity, change the build, or decide where code goes |
 | [docs/saving.md](docs/saving.md) | you read or write anything saved on the device |
 | [docs/testing.md](docs/testing.md) | you write or run tests, or screenshot checks |

@@ -16,6 +16,9 @@ import { clampCamX } from '../src/engine/camera.js';
 import { studioRoom } from '../src/rooms/studio/room.js';
 import { STUDIO_LINES } from '../src/rooms/studio/lines.js';
 import { PAINTING_LINES } from '../src/activities/painting/lines.js';
+import { addFinished, lineToBook, bookToLine, remove, splitLoaded } from '../src/activities/painting/collection.js';
+import { layoutBook, cardAt, clampScroll } from '../src/activities/painting/book.js';
+import { layoutChoices, createChooser, HOLD_MS } from '../src/ui/chooser.js';
 
 const fixture = (n) => JSON.parse(readFileSync(new URL('./fixtures/' + n, import.meta.url)));
 const memory = (init = {}) => { const m = { ...init }; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = v; }, m }; };
@@ -41,6 +44,12 @@ test('every saved-data version loads', () => {
   assert.deepEqual([...decodePainting(current).cells.slice(0, 12)], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0]);
   const v2 = migrate(fixture('save-v2.json'));
   assert.deepEqual([...decodePainting(v2.activities.painting.current).cells], [0, 0, 1, 1, 1, 2, 2, 2]);
+});
+test('a save with a book loads, and one from before the book has none (no version bump: the field is optional)', () => {
+  const withBook = migrate(fixture('save-v2-book.json')).activities.painting;
+  assert.equal(withBook.book.length, 2);
+  assert.deepEqual([...decodePainting(withBook.book[1]).cells], [0, 0, 1, 1, 1, 2, 2, 2]);
+  assert.equal(migrate(fixture('save-v2.json')).activities.painting.book, undefined);
 });
 test('unreadable saves become a fresh start', () => {
   for (const bad of [null, 5, 'x', [], { version: 99 }, { version: 2 }]) assert.deepEqual(migrate(bad), emptySave());
@@ -250,4 +259,67 @@ test('hex colors only in art files', () => {
   }
   // examples.js is data (paint indexes), grid/tools have none; anything listed here broke the rule
   assert.deepEqual(bad, []);
+});
+
+const pic = (n) => ({ w: 2, h: 2, cells: new Uint8Array(4).fill(n) });
+test('a full line sends new paintings to the book and nothing is ever dropped', () => {
+  const hung = Array.from({ length: 12 }, (_, i) => pic(i)), book = [];
+  assert.deepEqual(addFinished(hung, book, pic(20)), { dest: 'line', index: 12 });
+  assert.equal(hung.length, 13);
+  assert.deepEqual(addFinished(hung, book, pic(21)), { dest: 'book', index: 0 });
+  assert.deepEqual(addFinished(hung, book, pic(22)), { dest: 'book', index: 1 });
+  assert.deepEqual([hung.length, book.length], [13, 2]);
+  assert.equal(hung[0].cells[0], 0, 'the oldest is still on the line');
+});
+test('moving between the line and the book, and deleting', () => {
+  const hung = [pic(1), pic(2), pic(3)], book = [pic(9)];
+  assert.ok(lineToBook(hung, book, 1));
+  assert.deepEqual(hung.map((p) => p.cells[0]), [1, 3]);
+  assert.deepEqual(book.map((p) => p.cells[0]), [9, 2]);
+  assert.ok(!lineToBook(hung, book, 5) && !bookToLine(hung, book, -1));
+  assert.ok(bookToLine(hung, book, 0));
+  assert.deepEqual(hung.map((p) => p.cells[0]), [1, 3, 9]);
+  const full = Array.from({ length: 13 }, (_, i) => pic(i)), b2 = [pic(50)];
+  assert.ok(!bookToLine(full, b2, 0), 'a full line refuses');
+  assert.deepEqual([full.length, b2.length], [13, 1], 'and nothing moved');
+  assert.equal(remove(book, 0).cells[0], 2);
+  assert.equal(remove(book, 7), null);
+  assert.equal(book.length, 0);
+  const loaded = splitLoaded(Array.from({ length: 15 }, (_, i) => pic(i)), [pic(99)]);
+  assert.equal(loaded.hung.length, 13);
+  assert.deepEqual(loaded.book.map((p) => p.cells[0]), [0, 1, 99], 'extras go to the front of the book');
+});
+test('the book page lays cards out in columns, scrolls, and can be hit', () => {
+  for (const [W, H, u] of [[216, 480, 1], [640, 360, 1], [900, 400, 2], [150, 300, 1]]) {
+    const L = layoutBook(200, W, H, u);
+    assert.ok(L.cols >= 1 && L.cards.length === 200);
+    for (const c of L.cards) assert.ok(c.x >= 0 && c.x + c.w <= W, `card inside the width of ${W}`);
+    assert.ok(L.cards[0].y >= 34 * u, 'the first row clears the door');
+    assert.ok(L.total > H && L.maxScroll === L.total - H, 'many cards scroll');
+    assert.equal(clampScroll(L, 99999), L.maxScroll);
+    assert.equal(clampScroll(L, -5), 0);
+    const c = L.cards[4];
+    assert.equal(cardAt(L, 0, c.x + 1, c.y + 1), 4);
+    assert.equal(cardAt(L, 20, c.x + 1, c.y - 20 + 1), 4, 'scroll moves the cards');
+    assert.equal(cardAt(L, 0, -1, 0), -1);
+  }
+  assert.equal(layoutBook(0, 300, 300, 1).cards.length, 0);
+});
+test('chooser buttons stay on screen and the trash needs a hold', () => {
+  for (const [W, H, u] of [[216, 480, 1], [640, 360, 1]]) {
+    for (const t of [{ x: 0, y: 0, w: 40, h: 30 }, { x: W - 40, y: H - 30, w: 40, h: 30 }, { x: W / 2, y: H / 2, w: 50, h: 40 }]) {
+      for (const r of layoutChoices(3, t, W, H, u)) assert.ok(r.x >= 0 && r.x + r.w <= W && r.y >= 0 && r.y + r.h <= H, 'inside the screen');
+    }
+  }
+  let t = 0;
+  const ch = createChooser({ now: () => t }), sprite = { width: 4, height: 4 };
+  ch.open([{ k: 'save', sprite }, { k: 'delete', sprite, hold: true }], { x: 100, y: 100, w: 40, h: 30 }, 640, 360, 1, 'ctx');
+  const [a, b] = ch._rects();
+  assert.ok(ch.down(a.x + 2, a.y + 2)); assert.deepEqual(ch.up(), { k: 'save' });
+  assert.ok(ch.down(b.x + 2, b.y + 2)); t = 100; assert.deepEqual(ch.up(), { hint: 'delete' }, 'let go too soon');
+  assert.ok(ch.down(b.x + 2, b.y + 2)); t = 100 + HOLD_MS - 1; assert.equal(ch.update(), null);
+  t = 100 + HOLD_MS; assert.deepEqual(ch.update(), { k: 'delete' }, 'held long enough');
+  assert.ok(ch.down(b.x + 2, b.y + 2)); ch.move(b.x + 200, b.y); t += HOLD_MS * 2; assert.equal(ch.update(), null, 'sliding off cancels the hold');
+  assert.ok(ch.down(0, 0)); assert.equal(ch.isOpen(), false, 'a tap outside closes it');
+  assert.equal(ch.down(0, 0), false, 'closed: touches pass through');
 });

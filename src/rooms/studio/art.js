@@ -3,7 +3,7 @@
 // own swatches; only paint, ink and paper come from the shared palette.
 import { Px, bay, mixh, rng } from '../../art/px.js';
 import { PAPER } from '../../art/palette.js';
-import { WORLD_W, EX } from './geometry.js';
+import { WORLD_W, EX, BOOK_X, BOOK_W, BOOK_H } from './geometry.js';
 
 let F = 288, WH = 360, BX = 0, BY = 0, LY = 0;
 
@@ -169,6 +169,25 @@ function beanbag(p,cx){
   p.ellS(cx+18,F-38,11,7,['#e05a9a','#ff8ac0','#ffc4e0'],'#a0386a');
   p.ellS(cx+56,F-6,6,6,['#c83030','#ec4b4b','#ff8a7a'],'#7a1a1a');p.ln(cx+52,F-8,cx+60,F-4,'#ffb0a0');p.ln(cx+61,F-2,cx+72,F,'#ec4b4b');
 }
+// Sadie's big book of paintings, standing on the floor: paper corners poking out the top, a little picture on the cover.
+function paintingBook(p,x){
+  const top=F+2-BOOK_H,w=BOOK_W,ol='#5e2a18',cv='#e0684a',cvD='#b04630',cvL='#f09070';
+  p.tint(x-2,F-2,w+8,7,'#5a2a10',.3,.7);
+  [['#7ccabe',x+16,6],['#ffd860',x+30,9],['#ff9fc4',x+44,5]].forEach(([c,sx,up])=>{p.r(sx-1,top-up-1,15,up+2,ol);p.r(sx,top-up,13,up+2,'#fffaf0');p.r(sx,top-up,13,3,c);p.r(sx,top-up,1,up+2,'#ffffff')});
+  p.r(x,top-1,w,BOOK_H+1,ol);
+  p.r(x+1,top,w-2,BOOK_H-1,cv);
+  p.d(x+1,top+BOOK_H-22,w-2,20,cvD,.35);
+  p.r(x+1,top,10,BOOK_H-1,cvD);p.r(x+10,top,1,BOOK_H-1,cvL);p.r(x+1,top,1,BOOK_H-1,'#8a3420');
+  for(const yy of [top+14,top+BOOK_H-18]){p.r(x+1,yy,10,3,'#ffd860');p.r(x+1,yy,10,1,'#fff0a0')}
+  p.r(x+w-4,top+1,3,BOOK_H-3,'#fff6e8');for(let yy=top+3;yy<top+BOOK_H-3;yy+=3)p.r(x+w-4,yy,3,1,'#d8c8b0');
+  [[x+12,top+2],[x+w-12,top+2],[x+12,top+BOOK_H-8],[x+w-12,top+BOOK_H-8]].forEach(([cx,cy])=>{p.r(cx,cy,5,5,'#ffd860');p.r(cx,cy,5,1,'#fff0a0');p.r(cx+1,cy+1,3,3,cv)});
+  const lx=x+20,ly=top+18,lw=40,lh=34;
+  p.r(lx-1,ly-1,lw+2,lh+2,ol);p.r(lx,ly,lw,lh,'#fffaf0');
+  p.r(lx+3,ly+3,lw-6,lh-9,'#8fd9f0');p.r(lx+3,ly+lh-14,lw-6,8,'#58bb52');p.ellS(lx+lw-12,ly+10,4,4,['#ffd860','#ffe890'],null);
+  p.r(lx+10,ly+lh-20,10,8,'#ec3b3b');p.r(lx+8,ly+lh-22,14,2,'#9a5a2c');p.r(lx+13,ly+lh-16,4,4,'#fffaf0');
+  p.r(lx+8,ly+lh-5,24,2,'#d8c8b0');
+  p.r(x+w-18,F-3,4,11,'#ff6fb5');p.r(x+w-18,F-3,1,11,'#ff9fc4');p.r(x+w-18,F+8,2,2,null);
+}
 function framedFish(p,x,y){
   p.r(x-1,y-1,54,40,'#7a4a12');p.r(x,y,52,38,'#e8ae30');p.r(x,y,52,1,'#ffe48a');p.r(x+4,y+4,44,30,'#7a4a12');
   p.g2(x+5,y+5,42,28,['#9fd6ff','#5aa6fb','#2e7cf6'],false);
@@ -281,6 +300,7 @@ export function paintStudio(g) {
   windowObj(p, 474, F - 206, 132, 92);
   plant(p, 446);
   dropCloth(p, EX - 120, EX + 120);
+  paintingBook(p, BOOK_X);
   easel(p);
   brushJar(p, EX + 104, F + 18);
   bookshelf(p, 880, F - 178);

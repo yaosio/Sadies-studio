@@ -21,3 +21,5 @@ export const PAINT = [
 ];
 export const WOOD_TRIM = '#f4dcb4'; // cutaway frame around the room; shows at the very edges
 export const FRAME = '#ffffff'; // white border on a painting as it flies to the clothesline
+export const PAGE = '#f7ecd2'; // the paper of the book's pages
+export const SCRIM = 'rgba(42,34,56,.45)'; // dims everything but the painting being chosen from

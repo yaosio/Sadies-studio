@@ -22,7 +22,10 @@ data without both.
   (bare paper) to `K` (paint 10), with a run count after repeated letters
   (`A12B` is twelve A then one B). See `src/save/codec.js`.
 - `current` is the painting on the easel; `hung` the clothesline, oldest first,
-  at most 13.
+  at most 13; `book` the book of paintings that did not fit, oldest first (any
+  number). `book` is optional: a save without it (made before the book) loads
+  with an empty book, so the version stays 2. Fixtures: `save-v2.json` (no book),
+  `save-v2-book.json`.
 - Palette order is saved data: paint value N means entry N of `PAINT` in
   `src/art/palette.js`. Never reorder or insert.
 - Version 1 was the mockup (`{ p, c }`, 72 x 54, key `sadies-studio-v1`). It is
@@ -46,12 +49,14 @@ data without both.
 ## Not built yet
 
 - Backup or restore across devices.
-- One record per painting (today one per activity). Not needed yet.
+- One record per painting (today one per activity). The book makes this matter
+  sooner: every save rewrites the whole record, book included (each painting's
+  text is encoded once and reused). Split it if saving ever feels slow.
 - Asking the browser to keep the data permanently (`navigator.storage.persist()`).
 
 ## Saving out
 
-Long-press (about 0.65 s) a hung painting in the room: sparkles, a sound, and
-the painting is offered as a PNG (`sadies-painting-N.png`, each cell a whole-number
+Long-press (about 0.65 s) a hung painting in the room (or a card in the book) and
+choose the save button: sparkles, a sound, and the painting is offered as a PNG (`sadies-painting-N.png`, each cell a whole-number
 square, about 1600 px on the long side). Code: `src/activities/painting/export.js`.
 Inside an artifact the host shows its own confirmation (`downloads` capability).

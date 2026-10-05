@@ -44,6 +44,18 @@ for (const size of SIZES) {
   await page.evaluate(() => { const b = document.getElementById('bubble'); b.hidden = true; }); // speech timing is not what this checks
   await shot('painting-tray');
 
+  // the book, with a few paintings in it (fixed ones, so the picture is repeatable)
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => window.__studio.debug().mode === 'room');
+  await page.evaluate(() => {
+    const enc = (i, w, h) => { let o = ''; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) o += 'ABCDEFGHIJK'[((x >> 2) + (y >> 2) + i) % 3 === 0 ? 1 + (i % 10) : 0]; return { w, h, d: o }; };
+    window.__studio.activity('painting').load({ current: null, hung: [], book: Array.from({ length: 7 }, (_, i) => enc(i, i % 3 ? 24 : 16, i % 3 ? 18 : 30)) });
+  });
+  await page.evaluate(() => window.__studio.enter('painting', 'book', 'book'));
+  await page.waitForFunction(() => window.__studio.debug().mode === 'painting');
+  await page.evaluate(() => { const b = document.getElementById('bubble'); b.hidden = true; });
+  await shot('book');
+
   for (const [label, png] of shots) {
     const file = `${size.name}-${label}.png`;
     mkdirSync(dir('./baseline'), { recursive: true });

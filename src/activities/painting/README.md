@@ -11,12 +11,16 @@ Full-screen paper activity. Product rules: [docs/painting.md](../../../docs/pain
 - `art.js`: pot, brush, sponge, cloth, peg, door and tray drawing.
   `clothesline-art.js`: the line with its frames. `examples.js`: first-run paintings.
 - `lines.js`: everything Sadie says while painting.
+- The book (paintings that did not fit on the line): `collection.js` (moving paintings
+  between line, book and nowhere; pure), `book.js` (card layout; pure), `book-art.js`
+  (drawing). The book is a *view* of this activity (`prepare('book')`), not a second
+  activity. The long-press choices come from `src/ui/chooser.js`.
 
 Zoom and scroll are a `view` (`{ cell, ox, oy }`, smooth) that `place` is derived
 from; the world forwards pinch (`gestureStart/Move/End`) and wheel input. Pull-out
 tabs and the undo stack are in `index.js` and `art.js`. Tall paintings
 hang rolled up (`hangShape` in `clothesline-art.js`).
 
-Saved state: `{ current, hung }`, painting codec in `src/save/codec.js`.
+Saved state: `{ current, hung, book }`, painting codec in `src/save/codec.js`.
 `prepare()` runs before the glide-in; `beginHang()` moves the painting to the
-saved clothesline at once and the world animates the flight, then `finishHang()`.
+saved clothesline (or the book, when the line is full) at once and the world animates the flight, then `finishHang()`.

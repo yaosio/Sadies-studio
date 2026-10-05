@@ -17,7 +17,8 @@ look left and right. Edge arrows on mouse help find the way.
 
 ## Objects are activities
 
-Tapping an object does something. Only the easel is a real activity. Others
+Tapping an object does something. The easel and the book of paintings are real (both
+belong to the painting activity; the book is on the floor left of the easel). Others
 make Sadie say a short line and are placeholders for later activities
 (bookshelf: stories, window: birds, cubby: music, and so on).
 
@@ -48,4 +49,4 @@ chosen from window size and device pixel ratio (`src/engine/view.js`).
 One pointer model for mouse and touch (pointer events). Dragging the room
 pans it and letting go with speed flicks it (speed measured over the last
 ~100 ms; catching a flick stops it where it is). A tap that does not move is a
-tap on an object; holding on a hung painting saves it out (see saving.md). Never rely on hover.
+tap on an object; holding on a hung painting opens the picture-only chooser: save, move to the book, delete (see painting.md, saving.md). Never rely on hover.
