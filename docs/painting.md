@@ -45,10 +45,14 @@ No zoom buttons: the controls are gestures, tabs on the paper, and one pad.
 - **Double tap** (or double click) glides between the whole paper and a
   paintable size. It takes back the first tap's dab, so it leaves no paint.
 - **Table view**: the whole paper with bare table (and a shadow) round it. Four
-  **pull-out tabs** sit on the paper's edges only in this view. Drag one outward
-  and paper unrolls that way, a cell at a time; the painting stays where it is.
-  On release the view settles back to the whole, bigger paper. Paper stops at 320
-  cells a side. There is no "more paper" button.
+  big **pull-out tabs** sit on the paper's edges only in this view. Touch a tab
+  and move outward: paper unrolls on that side; move inward: bare paper is cut
+  away, never paint (it stops at the painted area, or at 12 cells). It is a
+  joystick, not a drag: the further from where the finger grabbed, the faster
+  (up to about 45 cells a second), and holding still keeps going, so no long
+  swipe is needed. The view keeps the whole paper in sight while it changes.
+  The painting stays where it is on the paper. Paper stops at 320 cells a side.
+  There is no "more paper" button.
 - **Moving around**: two fingers drag the paper; mouse wheel, arrow keys or
   right/middle-button drag also work. While painting within about a tenth of the
   screen of an edge of a zoomed paper, the view drifts that way and keeps painting
@@ -56,9 +60,9 @@ No zoom buttons: the controls are gestures, tabs on the paper, and one pad.
   is ignored (a resting palm); a one-dab stroke is taken back when it turns out to
   be a pinch.
 - **Grid dots** (tray switch, key `g`): a dot in the middle of every cell. Off by
-  default (the setting is saved). Whether on or off they show brightly while the
-  view moves (zoom, scroll, pull) and fade back over a moment, so movement is
-  easy to see. Hidden when cells are under 4 pixels.
+  default (the setting is saved), and when off they never show. When on they are
+  faint at rest and brighter while the view moves (zoom, scroll, pull), fading back
+  over a moment, so movement is easy to see. Hidden when cells are under 4 pixels.
 - Sadie explains pinch/double tap and the tabs the first time each is used.
 - Code: view math in `grid.js` (`zoomRange`, `startCell`, `clampView`, `edgeTabs`,
   `growSides`), gestures and tabs in `index.js`, touch routing in `src/world/world.js`.

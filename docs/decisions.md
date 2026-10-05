@@ -96,15 +96,19 @@ so) or **proposed** (a default picked, awaiting the user).
 - [confirmed] Paper size and zoom: a paper pad on a bare easel opens a shelf of
   sheet pictures, paper only ever grows (nothing shrinks once painting starts),
   zoom is pinch, double tap, wheel or keys (view only, no tray icons for it), and
-  more paper is pulled out by tabs on the paper's edges in the whole-paper view.
+  more paper is pulled out (and bare paper pushed in) by tabs on the paper's edges in the whole-paper view.
   Reason: the first version's tray icons (hand, magnifier, plus) were confusing
   (user, 2026-10-05). Works with touch and mouse. Old paintings need no care: the
   user is the only user.
 - [confirmed] Zoom and scroll are smooth, not snapped to whole cells (the paper
   only). Reason: the user's choice. Relaxes the whole-number rule for this one case.
-- [confirmed] Grid dots: off by default, switchable, saved; shown brightly while
-  the view moves and then back to normal. The old faint speckle on bare paper is
-  gone. Reason: zooming was hard to see.
+- [confirmed] Grid dots: off by default, switchable, saved; never shown when off.
+  When on they are brighter while the view moves and then back to faint. The old
+  faint speckle on bare paper is gone. Reason: zooming was hard to see.
+- [confirmed] Paper can be shrunk as well as grown, by pushing the edge tabs in,
+  but only through bare paper (never paint). The tabs are big and act like a
+  joystick (hold to keep going). Reason: swiping to the screen edge was hard on a
+  phone.
 - [confirmed] Hung paintings are on the wall, behind everything; only the easel
   paper and Sadie are in front. Reason: a tall one hung over the easel.
 - [confirmed] A very tall painting hangs and then rolls up where it would reach the

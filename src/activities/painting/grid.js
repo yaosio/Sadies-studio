@@ -41,14 +41,34 @@ export function paperGrid(id, W, H) {
   return { w: g.w, h: g.h };
 }
 
-// "More paper": a new painting with bare cells added on each side (l, t, r, b),
-// the old one kept where it was. Sides are clamped so no side passes MAX_SIDE.
-export function growSides(p, l, t, r, b) {
+// The smallest a sheet can be shrunk to, in cells.
+export const MIN_PAPER = 12;
+// The box (x0, y0, x1, y1, inclusive) around all the paint, or null if bare.
+export function paintBounds(p) {
+  let x0 = p.w, y0 = p.h, x1 = -1, y1 = -1;
+  for (let y = 0; y < p.h; y++) for (let x = 0; x < p.w; x++) if (p.cells[y * p.w + x]) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  return x1 < 0 ? null : { x0, y0, x1, y1 };
+}
+// "More paper" and "less paper": add (positive) or cut (negative) bare cells on
+// each side (l, t, r, b), the painting kept where it was. Growth stops at
+// MAX_SIDE; a cut never goes into paint or below MIN_PAPER, so nothing painted
+// is ever lost. Returns { p, l, t, r, b } with what was actually done.
+export function resizeSides(p, l, t, r, b, bounds = paintBounds(p)) {
+  const cut = (want, room) => (want < 0 ? -Math.min(-want, Math.max(0, room)) : want);
+  l = cut(l, Math.min(bounds ? bounds.x0 : p.w, p.w - MIN_PAPER)); r = cut(r, Math.min(bounds ? p.w - 1 - bounds.x1 : p.w, p.w - MIN_PAPER));
+  t = cut(t, Math.min(bounds ? bounds.y0 : p.h, p.h - MIN_PAPER)); b = cut(b, Math.min(bounds ? p.h - 1 - bounds.y1 : p.h, p.h - MIN_PAPER));
+  // both sides of an axis together may not cut below MIN_PAPER
+  const both = (a, z, size) => { const over = (a < 0 ? -a : 0) + (z < 0 ? -z : 0) - Math.max(0, size - MIN_PAPER); return over > 0 ? (z < 0 ? [a, z + Math.min(over, -z)] : [a + Math.min(over, -a), z]) : [a, z]; };
+  [l, r] = both(l, r, p.w); [t, b] = both(t, b, p.h);
   const hMax = Math.max(0, MAX_SIDE - p.w), vMax = Math.max(0, MAX_SIDE - p.h);
-  const L = Math.min(l, hMax), R = Math.min(r, hMax - L), T = Math.min(t, vMax), B = Math.min(b, vMax - T);
-  const out = newPainting(p.w + L + R, p.h + T + B);
-  for (let y = 0; y < p.h; y++) out.cells.set(p.cells.subarray(y * p.w, (y + 1) * p.w), (y + T) * out.w + L);
-  return { p: out, l: L, t: T, r: R, b: B };
+  if (l > 0) l = Math.min(l, hMax);
+  if (r > 0) r = Math.min(r, hMax - Math.max(0, l));
+  if (t > 0) t = Math.min(t, vMax);
+  if (b > 0) b = Math.min(b, vMax - Math.max(0, t));
+  const out = newPainting(p.w + l + r, p.h + t + b);
+  const cl = Math.max(0, -l), cr = Math.max(0, -r), ct = Math.max(0, -t), cb = Math.max(0, -b);
+  for (let y = ct; y < p.h - cb; y++) out.cells.set(p.cells.subarray(y * p.w + cl, (y + 1) * p.w - cr), (y - ct + Math.max(0, t)) * out.w + Math.max(0, l));
+  return { p: out, l, t, r, b };
 }
 
 // Zoom is smooth: any cell size (canvas pixels per paint cell) between the
@@ -80,7 +100,7 @@ export const viewAround = (cell, px, py, sx, sy, gw, gh, W, H) => clampView({ ce
 // (and room for the tabs) is on screen, or always when `always` is set. Boxes are in canvas pixels; `hit` is a
 // roomier box for fingers. u is the size of one art pixel.
 export function edgeTabs(place, W, H, u, always = false) {
-  const depth = 10 * u, len = 30 * u, pad = 8 * u;
+  const depth = 18 * u, len = 44 * u, pad = 12 * u;
   if (!always && (place.x < depth || place.y < depth || place.x + place.w > W - depth || place.y + place.h > H - depth)) return [];
   const cx = place.x + place.w / 2, cy = place.y + place.h / 2;
   const mk = (side, x, y, w, h, hx, hy, hw, hh) => ({ side, x, y, w, h, hit: { x: hx, y: hy, w: hw, h: hh } });

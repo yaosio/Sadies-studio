@@ -6,7 +6,7 @@ import { join, relative } from 'node:path';
 import { encodeCells, decodeCells, encodePainting, decodePainting } from '../src/save/codec.js';
 import { migrate, emptySave, CURRENT_VERSION } from '../src/save/migrate.js';
 import { createStore, openStore, KEY } from '../src/save/store.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, PAPER_IDS, paperGrid, growSides, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, MAX_CELL } from '../src/activities/painting/grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, PAPER_IDS, paperGrid, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, MAX_CELL } from '../src/activities/painting/grid.js';
 import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
 import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
 import { layoutTray, ITEM_IDS } from '../src/activities/painting/tray.js';
@@ -105,16 +105,26 @@ test('every sheet of paper is a sane size on every screen', () => {
   assert.ok(paperGrid('big', 640, 360).w > paperGrid('screen', 640, 360).w && paperGrid('small', 640, 360).w < paperGrid('screen', 640, 360).w);
 });
 
-test('more paper keeps the painting where it was and stops at the limit', () => {
+test('paper grows and shrinks around the painting but never cuts paint', () => {
   const p = newPainting(30, 20);
-  stamp(p, 3, 4, 'brushS', 2);
-  const g = growSides(p, 5, 2, 0, 7);
+  stamp(p, 10, 8, 'brushS', 2);
+  const bb = paintBounds(p);
+  const g = resizeSides(p, 5, 2, 0, 7);
   assert.deepEqual([g.l, g.t, g.r, g.b], [5, 2, 0, 7]);
   assert.equal(g.p.w, 35); assert.equal(g.p.h, 29);
-  assert.equal(g.p.cells[(4 + 2) * g.p.w + 3 + 5], 3, 'same paint in the same place');
+  assert.equal(g.p.cells[(8 + 2) * g.p.w + 10 + 5], 3, 'same paint in the same place');
   assert.equal(g.p.cells.filter(Boolean).length, p.cells.filter(Boolean).length, 'no paint lost or added');
-  const capped = growSides(newPainting(MAX_SIDE - 2, 24), 3, 0, 3, 0);
-  assert.equal(capped.p.w, MAX_SIDE, 'stops at the limit');
+  // shrink: bare paper goes, but the cut stops at the paint
+  const cut = resizeSides(p, -100, -100, -100, -100);
+  assert.equal(cut.p.cells.filter(Boolean).length, p.cells.filter(Boolean).length, 'a huge cut still loses no paint');
+  assert.ok(cut.p.w >= bb.x1 - bb.x0 + 1 && cut.p.h >= bb.y1 - bb.y0 + 1 && cut.p.w >= MIN_PAPER && cut.p.h >= MIN_PAPER);
+  assert.equal(cut.p.w, MIN_PAPER, 'a cut stops at the smallest paper');
+  const wide = newPainting(40, 20); for (let x = 8; x < 30; x++) wide.cells[5 * 40 + x] = 2;
+  const tight = resizeSides(wide, -100, 0, -100, 0);
+  assert.deepEqual([tight.l, tight.r, tight.p.w], [-8, -10, 22], 'a cut stops right at the paint');
+  const bare = resizeSides(newPainting(30, 20), 0, 0, -100, -100);
+  assert.equal(bare.p.w, MIN_PAPER); assert.equal(bare.p.h, MIN_PAPER); // bare paper shrinks to the minimum
+  assert.equal(resizeSides(newPainting(MAX_SIDE - 2, 24), 3, 0, 3, 0).p.w, MAX_SIDE, 'growth stops at the limit');
 });
 
 test('zoom is smooth, keeps the paper in reach, and the table view leaves room for the tabs', () => {

@@ -57,7 +57,7 @@ export function drawEdgeTab(c, x, y, w, h, u, arrow) {
   c.fillStyle = '#6e3e1e'; c.fillRect(x, y, w, h);
   c.fillStyle = '#d48e4c'; c.fillRect(x + u, y + u, w - 2 * u, h - 2 * u);
   c.fillStyle = '#f2bc7c'; c.fillRect(x + u, y + u, w - 2 * u, u);
-  const s = 5 * u * 1;
+  const s = 10 * u; // the arrow is 5 art pixels, drawn twice as big
   c.drawImage(arrow, Math.round(x + (w - s) / 2), Math.round(y + (h - s) / 2), s, s);
 }
 

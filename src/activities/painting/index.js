@@ -7,7 +7,7 @@ import { PAPER, PAINT, WOOD_TRIM, SHADOW } from '../../art/palette.js';
 import { encodePainting, decodePainting } from '../../save/codec.js';
 import { pick, easeOut } from '../../engine/util.js';
 import { TOOLS, DEFAULT_TOOL } from './tools.js';
-import { newPainting, isBlank, placeGrid, stamp, strokeLine, MAX_HUNG, PAPER_IDS, paperGrid, growSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
+import { newPainting, isBlank, placeGrid, stamp, strokeLine, MAX_HUNG, PAPER_IDS, paperGrid, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
 import { fitRect, fitted } from './thumb.js';
 import { layoutTray, inRect } from './tray.js';
 import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkPaper, mkGridIcon, mkArrow, drawEdgeTab, drawGridDots, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
@@ -66,7 +66,7 @@ export function createPainting(env) {
   // Zoom is smooth (any cell size between the table view and MAX_CELL). The
   // table view shows the whole paper with some bare table round it, where the
   // pull-out tabs sit. See docs/painting.md.
-  const margin = () => 24 * u;
+  const margin = () => 40 * u;
   const range = () => zoomRange(current.w, current.h, W, H, margin());
   const moved = () => { movedAt = env.now(); }; // makes the grid dots show for a moment
   const syncPlace = () => { place = { cell: view.cell, x: view.ox, y: view.oy, w: current.w * view.cell, h: current.h * view.cell }; };
@@ -209,7 +209,7 @@ export function createPainting(env) {
     if (opts && opts.pan) { anim = null; pan = { x, y, ox: view.ox, oy: view.oy }; trayOpen = false; return; }
     for (const tab of tabsOn()) if (inRect(tab.hit, x, y)) { // pull more paper out
       anim = null; trayOpen = false;
-      grow = { side: tab.side, base: current, view0: { ...view }, x0: x, y0: y, n: 0 };
+      grow = { side: tab.side, base: current, bounds: paintBounds(current), x0: x, y0: y, n: 0, acc: 0 };
       env.sound.play('tab');
       return;
     }
@@ -227,21 +227,21 @@ export function createPainting(env) {
     stamp(current, c[0], c[1], tool, color);
     paperDirty = true;
   }
+  // Pulling a tab out adds paper on that side, pushing it in takes bare paper
+  // away (never paint). It is like a joystick: the further the finger is from
+  // where it grabbed, the faster the paper grows or shrinks, and the view keeps
+  // the whole paper in sight, so no long swipe is needed.
   function growTo(n) {
-    const g = grow, side = g.side;
-    const r = growSides(g.base, side === 'left' ? n : 0, side === 'top' ? n : 0, side === 'right' ? n : 0, side === 'bottom' ? n : 0);
+    const g = grow, side = g.side, v = (k) => (side === k ? n : 0);
+    const r = resizeSides(g.base, v('left'), v('top'), v('right'), v('bottom'), g.bounds);
+    g.n = r[side[0]]; g.acc = g.n; // what was really done (a cut stops at the paint)
     current = r.p; paperDirty = true; version++;
-    const cell = g.view0.cell; // the painting stays where it was; the new paper unrolls outward
-    view = { cell, ox: g.view0.ox - r.l * cell, oy: g.view0.oy - r.t * cell };
-    syncPlace();
+    setView(tableView());
   }
+  const GROW_RATE = 45; // cells a second with the finger fully pulled
   function pointerMove(x, y) {
     lastPtr = { x, y };
-    if (grow) {
-      const n = Math.max(0, Math.round(outward[grow.side](grow, x, y) / grow.view0.cell));
-      if (n !== grow.n) { grow.n = n; growTo(n); moved(); }
-      return;
-    }
+    if (grow) return; // update() turns the pull into paper
     if (pan) { anim = null; moved(); setView({ cell: view.cell, ox: pan.ox + x - pan.x, oy: pan.oy + y - pan.y }); return; }
     if (!stroke) return;
     const c = cellAt(x, y, true);
@@ -254,8 +254,7 @@ export function createPainting(env) {
     if (grow) {
       const g = grow;
       grow = null;
-      if (g.n > 0) { persist(); hint('tabs', LINES.tabsDone); }
-      animateTo(tableView()); // settle back to seeing the whole, bigger paper
+      if (g.n !== 0) { persist(); hint('tabs', LINES.tabsDone); }
       return;
     }
     if (pan) { pan = null; return; }
@@ -359,6 +358,14 @@ export function createPainting(env) {
     if (!trayOpen && trayAnim <= 0.001) pickerOpen = false;
     const target = trayOpen ? 1 : 0;
     trayAnim = env.reducedMotion ? target : clamp(trayAnim + (target ? dt * 5 : -dt * 6), 0, 1);
+    if (grow && lastPtr) {
+      const dead = 5 * u, full = 30 * u, d = outward[grow.side](grow, lastPtr.x, lastPtr.y), mag = Math.abs(d);
+      if (mag > dead) {
+        grow.acc += Math.sign(d) * Math.min(1, (mag - dead) / (full - dead)) * GROW_RATE * dt;
+        const n = Math.round(grow.acc);
+        if (n !== grow.n) { growTo(n); moved(); }
+      }
+    }
     if (anim) {
       anim.t = Math.min(1, anim.t + dt / 0.3);
       const e = anim.t * anim.t * (3 - 2 * anim.t), a = anim.from, b = anim.to;
@@ -383,9 +390,11 @@ export function createPainting(env) {
     c.fillRect(0, 0, W, H);
     if (!covers) { c.fillStyle = SHADOW; c.fillRect(place.x + 2 * u, place.y + 2 * u, place.w, place.h); }
     c.drawImage(paperCanvas(), place.x, place.y, place.w, place.h);
-    const base = grid ? 0.3 : 0, boost = clamp(1 - (env.now() - movedAt) / 700, 0, 1); // dots show brightly while the view moves, then settle
-    drawGridDots(c, place, W, H, base + (0.85 - base) * boost);
-    for (const t of tabsOn()) drawEdgeTab(c, Math.round(t.x), Math.round(t.y), Math.round(t.w), Math.round(t.h), u, sprite('arrow' + t.side, () => mkArrow(t.side)));
+    if (grid) { // faint at rest, brighter while the view moves; with the grid off, never
+      const boost = clamp(1 - (env.now() - movedAt) / 700, 0, 1);
+      drawGridDots(c, place, W, H, 0.3 + 0.55 * boost);
+    }
+    for (const t of tabsOn()) drawEdgeTab(c, Math.round(t.x), Math.round(t.y), Math.round(t.w), Math.round(t.h), u, sprite('arrow' + t.side, () => mkArrow({ top: 'up', bottom: 'down', left: 'left', right: 'right' }[t.side])));
     drawTray(c, now);
   }
 

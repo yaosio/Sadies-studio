@@ -164,8 +164,16 @@ for (const target of targets) {
   assert.equal(s.tabs, 0, 'no tabs while the paper fills the screen');
   const startCell = s.view.cell;
 
-  // grid is off by default; switching it on is remembered
+  // grid is off by default, and then never shows, even while zooming
   assert.equal(s.grid, false, 'grid off by default');
+  const dots = () => page.evaluate(() => { const c = document.getElementById('scene').getContext('2d'), d = window.__studio.debug(); const img = c.getImageData(0, 0, d.W, d.H).data; let n = 0; for (let i = 0; i < img.length; i += 4) if (img[i] < 200 && img[i + 1] < 200) n++; return n; });
+  const blank0 = await dots();
+  await touch('touchStart', [[170, 400], [220, 400]]);
+  for (let i = 1; i <= 4; i++) await touch('touchMove', [[170 - i * 5, 400], [220 + i * 5, 400]]);
+  assert.ok((await dots()) <= blank0 + 40, 'no grid dots while zooming with the grid off');
+  await touch('touchEnd', []);
+  await page.waitForTimeout(100);
+  // (switching it on is remembered, below)
 
   // paint, then the pad is gone from the tray (the sheet cannot change under a painting)
   await page.mouse.move(100, 200); await page.mouse.down();
@@ -204,15 +212,24 @@ for (const target of targets) {
   s = await st();
   assert.equal(s.painted, before, 'a double tap leaves no dabs');
   assert.equal(s.tabs, 4, `${target}: the whole paper shows four pull-out tabs`);
-  // drag the right tab outward: more paper, the painting stays
-  const tab = await page.evaluate(() => { const d = window.__studio.debug(), t = window.__studio.activity('painting')._tabs().find((x) => x.side === 'right'); return { x: t.x + t.w / 2, y: t.y + t.h / 2, S: d.S }; });
+  // pull the right tab outward and hold: paper unrolls without a long swipe; the painting stays
+  const tab = await page.evaluate(() => { const d = window.__studio.debug(), t = window.__studio.activity('painting')._tabs().find((x) => x.side === 'right'); return { x: t.x + t.w / 2, y: t.y + t.h / 2, S: d.S, depth: t.w }; });
+  assert.ok(tab.depth * tab.S / 2 >= 24, `${target}: tabs are big enough for a finger (${tab.depth * tab.S / 2} css px deep)`);
   const tx = (tab.x * tab.S) / 2, ty = (tab.y * tab.S) / 2;
   await page.mouse.move(tx, ty); await page.mouse.down();
-  for (let i = 1; i <= 8; i++) await page.mouse.move(tx + i * 4, ty);
+  await page.mouse.move(tx + 18, ty);
+  await page.waitForTimeout(900); // held, not swiped
   await page.mouse.up();
-  await page.waitForTimeout(700);
   const wider = await st();
-  assert.ok(wider.w > s.w && wider.h === s.h && wider.painted === s.painted, `${target}: pulling the tab adds paper and keeps the paint (${s.w} -> ${wider.w})`);
+  assert.ok(wider.w > s.w + 10 && wider.h === s.h && wider.painted === s.painted, `${target}: holding the tab adds paper and keeps the paint (${s.w} -> ${wider.w})`);
+  // push it back in: bare paper goes, paint stays, and it stops at the paint
+  const tab2 = await page.evaluate(() => { const d = window.__studio.debug(), t = window.__studio.activity('painting')._tabs().find((x) => x.side === 'right'); return { x: t.x + t.w / 2, y: t.y + t.h / 2, S: d.S }; });
+  await page.mouse.move((tab2.x * tab2.S) / 2, (tab2.y * tab2.S) / 2); await page.mouse.down();
+  await page.mouse.move((tab2.x * tab2.S) / 2 - 80, (tab2.y * tab2.S) / 2);
+  await page.waitForTimeout(2500);
+  await page.mouse.up();
+  const smaller = await st();
+  assert.ok(smaller.w < wider.w && smaller.painted === wider.painted, `${target}: pushing the tab in shrinks the paper without losing paint (${wider.w} -> ${smaller.w})`);
   // mouse wheel scrolls, ctrl-wheel zooms
   await page.mouse.move(200, 300);
   const c0 = (await st()).view.cell;

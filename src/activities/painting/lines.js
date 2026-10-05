@@ -14,8 +14,8 @@ export const PAINTING_LINES = {
   gridOn: 'Grid on. A little dot in every square.',
   gridOff: 'Grid off. Clean paper.',
   zoomed: 'Pinch to zoom. Tap twice to see the whole paper.',
-  tabs: 'Pull a little tab to get more paper.',
-  tabsDone: 'More paper! Your painting stays right where it is.',
+  tabs: 'Pull a tab out for more paper. Push it in for less.',
+  tabsDone: 'Your painting stays right where it is.',
   paper: {
     screen: 'A sheet that fits the screen.', big: 'A big sheet. Room for tiny details.', tall: 'A tall sheet. Pinch to look closer, slide with two fingers.',
     wide: 'A wide sheet. Pinch to look closer, slide with two fingers.', small: 'A small sheet. Chunky and quick.',
