@@ -130,7 +130,7 @@ for (const target of targets) {
   await ctx.close();
   console.log(`ok  ${target}`);
 }
-// Pull-out paper, zoom and scroll, the grid, and a tall painting hanging, on a phone.
+// Pull-out paper, zoom and scroll, undo, wipe, and a tall painting hanging, on a phone.
 for (const target of targets) {
   const errors = [];
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
@@ -143,44 +143,29 @@ for (const target of targets) {
   await page.evaluate(() => window.__studio.enter('painting'));
   await until(page, () => window.__studio.debug().mode === 'painting', 'painting mode');
   await page.waitForTimeout(1200);
-  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { w: s.current.w, h: s.current.h, view: s.view, grid: s.grid, tabs: s.tabs, painted: s.current.cells.filter(Boolean).length, hung: s.hung.length, natural: s.natural }; });
+  const st = () => page.evaluate(() => { const s = window.__studio.activity('painting')._state(); return { w: s.current.w, h: s.current.h, view: s.view, tabs: s.tabs, painted: s.current.cells.filter(Boolean).length, hung: s.hung.length, natural: s.natural }; });
   const geo = () => page.evaluate(() => { const t = window.__studio.activity('painting')._tray(), d = window.__studio.debug(); return { S: d.S, tab: t.tab, H: d.H, items: t.items.map((i) => ({ k: i.k, hit: i.hit })) }; });
   const css = (g, v) => (v * g.S) / 2; // canvas pixels to css pixels (device scale 2)
   const openTray = async () => { const g = await geo(); await page.touchscreen.tap(css(g, g.tab.x + g.tab.w / 2), css(g, g.H - g.tab.h / 2)); await page.waitForTimeout(500); };
   const tapItem = async (k) => { const g = await geo(), it = g.items.find((i) => i.k === k); assert.ok(it, `tray has ${k}`); await page.touchscreen.tap(css(g, it.hit.x + it.hit.w / 2), css(g, it.hit.y + it.hit.h / 2)); await page.waitForTimeout(250); };
   const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p[0], y: p[1], id: i })) });
 
-  // the tray has the grid switch and no paper controls, and a new painting starts at the default size
+  // the tray has undo and no paper controls, and a new painting starts at the default size
   await openTray();
   let g = await geo();
-  assert.ok(g.items.some((i) => i.k === 'grid') && g.items.some((i) => i.k === 'hang'));
+  assert.ok(g.items.some((i) => i.k === 'undo') && g.items.some((i) => i.k === 'hang'));
   assert.ok(!g.items.some((i) => ['paper', 'hand', 'zoom', 'more'].includes(i.k) || i.k.startsWith('sheet:')), 'no paper, hand or zoom controls');
   let s = await st();
   assert.deepEqual([s.w, s.h], [s.natural.w, s.natural.h], `${target}: a fresh painting is the default size`);
   assert.equal(s.tabs, 0, 'no tabs while the paper fills the screen');
   const startCell = s.view.cell;
-  // grid is off by default, and then never shows, even while zooming
-  assert.equal(s.grid, false, 'grid off by default');
-  const dots = () => page.evaluate(() => { const c = document.getElementById('scene').getContext('2d'), d = window.__studio.debug(); const img = c.getImageData(0, 0, d.W, d.H).data; let n = 0; for (let i = 0; i < img.length; i += 4) if (img[i] < 200 && img[i + 1] < 200) n++; return n; });
-  const blank0 = await dots();
-  await touch('touchStart', [[170, 400], [220, 400]]);
-  for (let i = 1; i <= 4; i++) await touch('touchMove', [[170 - i * 5, 400], [220 + i * 5, 400]]);
-  assert.ok((await dots()) <= blank0 + 40, 'no grid dots while zooming with the grid off');
-  await touch('touchEnd', []);
-  await page.waitForTimeout(100);
-  // (switching it on is remembered, below)
-
-  // paint, then the pad is gone from the tray (the sheet cannot change under a painting)
+  // paint a stroke
   await page.mouse.move(100, 200); await page.mouse.down();
   for (let i = 0; i < 20; i++) await page.mouse.move(100 + i * 8, 200 + i * 12);
   await page.mouse.up();
   const painted = (await st()).painted;
   assert.ok(painted > 0);
-  await openTray();
-  await tapItem('grid');
-  assert.equal((await st()).grid, true, 'grid switched on');
-  await page.mouse.move(100, 400); await page.mouse.down(); await page.mouse.up(); // tuck the tray away
-  const afterTap = (await st()).painted;
+  const afterTap = painted;
 
   // pinch out: smooth, not snapped to steps; a pinch paints nothing
   const cells = [];
@@ -242,13 +227,20 @@ for (const target of targets) {
   const wiped = await st();
   assert.equal(wiped.painted, 0, `${target}: holding the bucket wipes all paint`);
   assert.deepEqual([wiped.w, wiped.h], [size.w, size.h], 'the paper keeps its size');
-  await page.waitForTimeout(500);
+  // undo brings the wiped paint back
+  await page.waitForTimeout(300);
+  await openTray(); await tapItem('undo');
+  assert.equal((await st()).painted, size.painted, `${target}: undo brings the wiped paint back`);
+  // undo goes back through strokes and paper size changes too
+  await openTray(); await tapItem('undo');
+  const earlier = await st();
+  assert.ok(earlier.w !== size.w || earlier.h !== size.h || earlier.painted !== size.painted, `${target}: undo steps back further (${size.w}x${size.h}/${size.painted} -> ${earlier.w}x${earlier.h}/${earlier.painted})`);
   await page.mouse.move(200, 400); await page.mouse.down();
   for (let i = 0; i < 12; i++) await page.mouse.move(200 + i * 6, 400 + i * 10);
   await page.mouse.up();
-  assert.ok((await st()).painted > 0, 'painting again after a wipe works');
+  assert.ok((await st()).painted > 0, 'painting after undo works');
 
-  // hang it: the tall painting hangs rolled up, behind the easel, and survives a reload in IndexedDB with the grid setting
+  // hang it: the tall painting hangs rolled up, behind the easel, and survives a reload in IndexedDB
   await openTray(); await tapItem('hang');
   await until(page, () => window.__studio.debug().mode === 'room', 'room after hanging');
   const hung = await page.evaluate(() => { const a = window.__studio.activity('painting'), d = window.__studio.debug(), i = a._state().hung.length - 1; return { i, rect: a.room.slotRect(i, d.anchors.clothesline) }; });
@@ -263,7 +255,6 @@ for (const target of targets) {
   await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room after reload');
   const back = await st();
   assert.equal(back.hung, 3, 'the tall painting survived the reload');
-  assert.equal(back.grid, true, 'the grid setting survived the reload');
   assert.deepEqual(errors, [], `${target}: no console errors`);
   await ctx.close();
   console.log(`ok  ${target} paper sizes and zoom`);

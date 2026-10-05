@@ -33,11 +33,12 @@ export function mkClear() {
   p.r(9, 12, 2, 6, '#ffffff'); p.r(9, 12, 1, 6, '#d8f4ff');
   p.outline('#3d5a80'); return p.done();
 }
-// The grid switch: a sheet with dots in rows.
-export function mkGridIcon() {
-  const p = new Px(22, 24); p.r(3, 3, 16, 18, '#fffaf0');
-  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) p.r(5 + x * 4, 5 + y * 4, 2, 2, '#8b4fe0');
-  p.outline('#6e5a48'); return p.done();
+// The undo arrow: a curved arrow turning back.
+export function mkUndo() {
+  const p = new Px(22, 24);
+  for (let a = -170; a <= 70; a += 4) { const r = (a * Math.PI) / 180; p.disc(12 + Math.round(6 * Math.cos(r)), 13 + Math.round(6 * Math.sin(r)), 1, '#3d78c4'); }
+  for (let k = 0; k < 6; k++) p.r(5 - k, 13 + k, 2 * k + 3, 1, '#3d78c4'); // arrowhead pointing down at the start
+  p.outline('#23406a'); return p.done();
 }
 
 const CHEV = ['.....', '..o..', '.oyo.', 'oyyyo', 'ooooo'];
@@ -58,18 +59,6 @@ export function drawEdgeTab(c, x, y, w, h, u, arrow) {
   c.fillStyle = '#f2bc7c'; c.fillRect(x + u, y + u, w - 2 * u, u);
   const s = 10 * u; // the arrow is 5 art pixels, drawn twice as big
   c.drawImage(arrow, Math.round(x + (w - s) / 2), Math.round(y + (h - s) / 2), s, s);
-}
-
-// Dots at the middle of every visible cell. alpha 0 hides them.
-export function drawGridDots(c, place, W, H, alpha) {
-  const cell = place.cell;
-  if (cell < 4 || alpha < 0.02) return;
-  const gw = Math.round(place.w / cell), gh = Math.round(place.h / cell);
-  const x0 = Math.max(0, Math.floor(-place.x / cell)), x1 = Math.min(gw, Math.ceil((W - place.x) / cell));
-  const y0 = Math.max(0, Math.floor(-place.y / cell)), y1 = Math.min(gh, Math.ceil((H - place.y) / cell));
-  const d = Math.max(1, Math.round(cell / 7));
-  c.fillStyle = 'rgba(75,58,94,' + alpha.toFixed(2) + ')';
-  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) c.fillRect(Math.round(place.x + (x + 0.5) * cell - d / 2), Math.round(place.y + (y + 0.5) * cell - d / 2), d, d);
 }
 
 // Small arrow for the tray handle: up when the tray is closed, down when open.

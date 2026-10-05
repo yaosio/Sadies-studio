@@ -99,16 +99,17 @@ so) or **proposed** (a default picked, awaiting the user).
   icons were all confusing, user 2026-10-05). Works with touch and mouse. Old
   paintings need no care: the user is the only user.
 - [proposed] Wiping the whole paper is a tray bucket you hold for about 0.9 s (no
-  confirmation text, no undo). Reason: it cannot be undone, so it must be hard to
-  do by accident. Whether it needs an undo is not decided.
+  confirmation text). Reason: hard to do by accident; undo also brings it back.
 - [confirmed] A new painting always starts at the default size (the natural grid for
   the screen). The sheet shapes (tall, wide, big, small) were dropped. Reason: they
   changed the default size.
 - [confirmed] Zoom and scroll are smooth, not snapped to whole cells (the paper
   only). Reason: the user's choice. Relaxes the whole-number rule for this one case.
-- [confirmed] Grid dots: off by default, switchable, saved; never shown when off.
-  When on they are brighter while the view moves and then back to faint. The old
-  faint speckle on bare paper is gone. Reason: zooming was hard to see.
+- [confirmed] No grid dots at all: the switch, the saved `grid` flag and the motion
+  flash are removed (user 2026-10-05).
+- [proposed] Undo is multi-step (30), covers strokes, wipes and paper size changes,
+  and is not saved. Reason: the user asked for undo; a stack is no harder for a child
+  than one step. Wipe-only undo is the alternative.
 - [confirmed] Paper can be shrunk as well as grown, by pushing the edge tabs in,
   but only through bare paper (never paint). The tabs are big and act like a
   joystick (hold to keep going). Reason: swiping to the screen edge was hard on a

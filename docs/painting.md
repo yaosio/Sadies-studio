@@ -21,8 +21,7 @@ frame. The only things on top are small and tucked away:
 A grid of paint cells sized to the screen: about 54 cells on the short side
 and as many as fit on the long side, each cell a whole number of canvas pixels,
 so the paper covers the screen to within a cell and the rest is plain paper.
-Cells hold 0 (bare paper) or 1 to 10 (the paint colors). Bare paper is plain
-(the grid dots below are optional).
+Cells hold 0 (bare paper) or 1 to 10 (the paint colors). Bare paper is plain.
 
 An empty easel is the default size (below), fitted to the screen it is opened on.
 A painting keeps its own size.
@@ -60,10 +59,6 @@ tabs on the paper.
   under the finger. A second finger that lands while a stroke is already under way
   is ignored (a resting palm); a one-dab stroke is taken back when it turns out to
   be a pinch.
-- **Grid dots** (tray switch, key `g`): a dot in the middle of every cell. Off by
-  default (the setting is saved), and when off they never show. When on they are
-  faint at rest and brighter while the view moves (zoom, scroll, pull), fading back
-  over a moment, so movement is easy to see. Hidden when cells are under 4 pixels.
 - Sadie explains pinch/double tap and the tabs the first time each is used.
 - Code: view math in `grid.js` (`zoomRange`, `startCell`, `clampView`, `edgeTabs`,
   `growSides`), gestures and tabs in `index.js`, touch routing in `src/world/world.js`.
@@ -72,10 +67,12 @@ tabs on the paper.
 
 - **Paint pots** (10): tap one to choose a color.
 - **Small brush** (radius 1), **big brush** (radius 2).
-- **Grid switch**: see above.
+- **Undo** (key Ctrl+Z): steps back one thing at a time, up to 30: a stroke, a wipe,
+  or a paper size change (undoing a size change shows the table view). Not saved:
+  it starts empty on every new painting and after a reload.
 - **Bucket**: hold it (about 0.9 s, water rises in it) to wipe every bit of paint
   off the working paper. The paper keeps its size. A quick touch only makes Sadie
-  explain. It must be a hold because nothing undoes it.
+  explain. Undo brings it back.
 - **Sponge**: dabs, random partial coverage.
 - **Cloth**: erases to paper. Choosing a pot while holding the cloth switches
   back to the big brush.
