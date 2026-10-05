@@ -32,6 +32,7 @@ export const PAINTING_LINES = {
   deleted: ['Poof. Gone for good.', 'All gone. I will pretend I never saw it.'],
   deleteHint: 'Hold the trash can down to throw it away.',
   bookOpen: ['The book. Paintings sleep here when the line is full.', 'All the paintings that ran out of string.'],
+  reopen: ['Back to work on this one?', 'Touch-ups? I allow it.', 'Ooh, a second go. Brave.'],
   bookEmpty: 'Nothing in the book yet.',
   bookBye: 'The book stays here. Paintings are safe in it.',
   fromBook: ['Back on the line! Fresh air.', 'Up it goes again.'],

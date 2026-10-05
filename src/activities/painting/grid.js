@@ -94,6 +94,21 @@ export function edgeTabs(place, W, H, u, always = false) {
   ];
 }
 
+// Small arrow tabs tucked onto the screen edges while the paper fills the screen (so there
+// is no room outside it for the real tabs). Pressing one glides out to the table view,
+// where the real tabs are. The bottom one sits off to the side of the tray's tab.
+export function peekTabs(W, H, u, withBottom = true) {
+  const depth = 14 * u, len = 36 * u, pad = 4 * u;
+  const mk = (side, x, y, w, h) => ({ side, x, y, w, h, hit: { x: x - pad, y: y - pad, w: w + 2 * pad, h: h + 2 * pad } });
+  const tabs = [
+    mk('left', 0, Math.round(H / 2 - len / 2), depth, len),
+    mk('right', W - depth, Math.round(H / 2 - len / 2), depth, len),
+    mk('top', Math.round(W / 2 - len / 2), 0, len, depth),
+  ];
+  if (withBottom) tabs.push(mk('bottom', Math.round(W * 0.8 - len / 2), H - depth, len, depth));
+  return tabs;
+}
+
 // Where a gw x gh grid sits on a W x H screen: the largest whole-number cell
 // that fits, centered. Any leftover is plain paper.
 export function placeGrid(gw, gh, W, H) {

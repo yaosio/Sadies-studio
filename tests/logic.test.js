@@ -6,7 +6,7 @@ import { join, relative } from 'node:path';
 import { encodeCells, decodeCells, encodePainting, decodePainting } from '../src/save/codec.js';
 import { migrate, emptySave, CURRENT_VERSION } from '../src/save/migrate.js';
 import { createStore, openStore, KEY } from '../src/save/store.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, MAX_CELL } from '../src/activities/painting/grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, MIN_SIDE, MAX_SIDE, paintBounds, resizeSides, MIN_PAPER, zoomRange, fitCell, startCell, clampView, viewAround, edgeTabs, peekTabs, MAX_CELL } from '../src/activities/painting/grid.js';
 import { hangShape, slotRect } from '../src/activities/painting/clothesline-art.js';
 import { fitRect, resample, fitted } from '../src/activities/painting/thumb.js';
 import { layoutTray, ITEM_IDS } from '../src/activities/painting/tray.js';
@@ -16,9 +16,10 @@ import { clampCamX } from '../src/engine/camera.js';
 import { studioRoom } from '../src/rooms/studio/room.js';
 import { STUDIO_LINES } from '../src/rooms/studio/lines.js';
 import { PAINTING_LINES } from '../src/activities/painting/lines.js';
-import { addFinished, lineToBook, bookToLine, remove, splitLoaded } from '../src/activities/painting/collection.js';
+import { addFinished, lineToBook, bookToLine, remove, splitLoaded, takeToEasel } from '../src/activities/painting/collection.js';
 import { layoutBook, cardAt, clampScroll } from '../src/activities/painting/book.js';
 import { layoutChoices, createChooser, HOLD_MS } from '../src/ui/chooser.js';
+import { holdRingSpot } from '../src/ui/chooser-art.js';
 
 const fixture = (n) => JSON.parse(readFileSync(new URL('./fixtures/' + n, import.meta.url)));
 const memory = (init = {}) => { const m = { ...init }; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = v; }, m }; };
@@ -322,4 +323,28 @@ test('chooser buttons stay on screen and the trash needs a hold', () => {
   assert.ok(ch.down(b.x + 2, b.y + 2)); ch.move(b.x + 200, b.y); t += HOLD_MS * 2; assert.equal(ch.update(), null, 'sliding off cancels the hold');
   assert.ok(ch.down(0, 0)); assert.equal(ch.isOpen(), false, 'a tap outside closes it');
   assert.equal(ch.down(0, 0), false, 'closed: touches pass through');
+});
+
+test('tapping a painting puts a copy on the easel and the easel painting takes its place', () => {
+  const list = [pic(1), pic(2), pic(3)], easel = pic(9);
+  const got = takeToEasel(list, 1, easel, false);
+  assert.deepEqual([...got.cells], [2, 2, 2, 2]);
+  assert.notEqual(got, list[1]); assert.notEqual(got.cells, pic(2).cells);
+  assert.deepEqual(list.map((p) => p.cells[0]), [1, 9, 3], 'swapped in the same place');
+  const bare = takeToEasel(list, 0, pic(0), true);
+  assert.equal(bare.cells[0], 1);
+  assert.deepEqual(list.map((p) => p.cells[0]), [9, 3], 'a bare easel is just replaced');
+  assert.equal(takeToEasel(list, 5, easel, false), null);
+});
+test('edge arrows and the hold ring stay on screen', () => {
+  for (const [W, H, u] of [[216, 480, 1], [640, 360, 2]]) {
+    for (const t of peekTabs(W, H, u)) assert.ok(t.x >= 0 && t.y >= 0 && t.x + t.w <= W && t.y + t.h <= H, t.side + ' arrow inside the screen');
+    assert.equal(peekTabs(W, H, u, false).length, 3);
+    for (const [x, y] of [[0, 0], [W, H], [W / 2, H - 2], [W / 2, 5]]) {
+      const r = holdRingSpot(x, y, W, H, u);
+      assert.ok(r.x >= 0 && r.x <= W && r.y >= 0 && r.y <= H);
+    }
+    assert.ok(holdRingSpot(100, 100, W, H, u).y > 100, 'below the finger when there is room');
+    assert.ok(holdRingSpot(100, H - 5, W, H, u).y < H - 5, 'above only when there is no room below');
+  }
 });

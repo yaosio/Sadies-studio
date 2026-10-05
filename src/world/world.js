@@ -12,6 +12,7 @@ import { chooseScale, uiUnit } from '../engine/view.js';
 import { clampCamX } from '../engine/camera.js';
 import { createEffects } from './effects.js';
 import { createChooser } from '../ui/chooser.js';
+import { drawHoldRing, holdRingSpot } from '../ui/chooser-art.js';
 import { WORLD_LINES } from './lines.js';
 
 const GLIDE_SECONDS = 0.85;
@@ -46,6 +47,7 @@ export function createWorld(opts) {
     store, sound, reducedMotion: RM, now, say,
     exit: () => exitActivity(),
     hang: (src) => hangUp(src),
+    edit: () => editFromBook(),
   };
   const activities = {};
   for (const id of Object.keys(factories)) {
@@ -125,6 +127,17 @@ export function createWorld(opts) {
     trans = { t: 0, dur: RM ? 0.001 : HANG_SECONDS, from: fitCenter(), to: roomCenter(slot.x + slot.w / 2 - W / 2), h, slot, land };
     updateCursor();
   }
+  // A card in the book was tapped (the activity already put it on the easel): glide from the book to the easel.
+  function editFromBook() {
+    if (mode !== 'painting' || activeAnchor !== 'book') return;
+    const act = activities[activeId];
+    act.close();
+    activeAnchor = 'board'; activeView = null;
+    act.prepare(null);
+    mode = 'entering';
+    trans = { t: 0, dur: RM ? 0.001 : GLIDE_SECONDS, from: fitCenter('book'), to: fitCenter('board') };
+    updateCursor();
+  }
   function finishHang() {
     const act = activities[activeId], { slot } = trans;
     act.finishHang();
@@ -175,7 +188,7 @@ export function createWorld(opts) {
     const [wx, wy] = toRoom(sx, sy);
     fx.sparkle(wx, wy);
     sound.play('pop');
-    if (h.art) { h.art.room.tap(); fx.hearts(anchors.sadie.x + 26, anchors.sadie.y + 6, 1); return; }
+    if (h.art) { if (h.art.room.edit(h.index)) enterActivity('painting'); return; } // a hung painting: paint on it
     const a = h.action;
     if (a.activity) { enterActivity(a.activity, a.view, a.anchor); return; }
     if (a.glide != null) cam.tx = clampCamX(a.glide - W / 2, 1, W, room.width);
@@ -234,7 +247,8 @@ export function createWorld(opts) {
     if (mode === 'painting') activities[activeId].pointerDown(sx, sy, { pan: e.pointerType === 'mouse' && e.button !== 0 });
     else if (mode === 'room') {
       vel = 0; cam.tx = cam.x; // catching a flick stops it right where it is, no jump
-      ptr = { sx, sy, camX: cam.x, moved: false, downT: now(), long: false, samples: [{ t: now(), x: sx }] };
+      const onArt = !!(hitRoom(sx, sy) || {}).art; // a hold here will offer choices: show the ring filling in
+      ptr = { sx, sy, camX: cam.x, moved: false, downT: now(), long: false, onArt, samples: [{ t: now(), x: sx }] };
     }
   }
   function onMove(e) {
@@ -405,6 +419,10 @@ export function createWorld(opts) {
     fx.draw(c);
     c.setTransform(1, 0, 0, 1, 0, 0);
     if (trans) drawTransitionPaper();
+    if (mode === 'room' && ptr && ptr.onArt && !ptr.moved && !ptr.long && !still && now() - ptr.downT > 150) {
+      const r = holdRingSpot(ptr.sx, ptr.sy, W, H, u);
+      drawHoldRing(c, r.x, r.y, u, (now() - ptr.downT) / LONG_PRESS_MS);
+    }
     chooser.draw(c);
     if (mode === 'room' && !ptr) {
       const k = 2, b = RM || still ? 0 : Math.round(Math.sin(T * 4) * 2), cy = Math.round(H / 2 - 9);

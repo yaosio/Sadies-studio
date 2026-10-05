@@ -170,6 +170,17 @@ for (const target of targets) {
   let st = await state();
   assert.deepEqual([st.hung, st.book], [13, 1], `${target}: with the line full a new painting goes into the book and nothing is dropped`);
 
+  // while the paper fills the screen, small arrows on its edges show it can be resized; pressing one glides out to the table view with the real tabs
+  await page.evaluate(() => window.__studio.enter('painting'));
+  await waitMode('painting'); await page.waitForTimeout(1200);
+  const peeks = await page.evaluate(() => { const a = window.__studio.activity('painting'), d = window.__studio.debug(), t = a._peek().find((x) => x.side === 'left'); return { n: a._peek().length, tabs: a._state().tabs, x: (t.x + t.w / 2) * d.S, y: (t.y + t.h / 2) * d.S }; });
+  assert.deepEqual([peeks.n, peeks.tabs], [4, 0], `${target}: edge arrows show at the default zoom`);
+  await page.mouse.click(peeks.x, peeks.y);
+  await page.waitForTimeout(700);
+  assert.equal(await page.evaluate(() => window.__studio.activity('painting')._state().tabs), 4, 'pressing an edge arrow glides out to the pull-out tabs');
+  await page.keyboard.press('Escape');
+  await waitMode('room');
+
   // tap the book in the room: the camera glides there and the book opens
   await page.evaluate(() => window.__studio.panTo(534));
   await page.waitForTimeout(1000);
@@ -242,6 +253,33 @@ for (const target of targets) {
   await until(page, () => window.__studio && window.__studio.debug().mode === 'room', 'room after reload');
   st = await state();
   assert.deepEqual([st.hung, st.book], [11, 1], `${target}: the book survives a reload`);
+
+  // tapping a hung painting opens it on the easel to paint on (the bare easel gives way, nothing is duplicated)
+  const spotOf = async (i) => {
+    const pos = await page.evaluate((i) => { const w = window.__studio, d = w.debug(), r = w.activity('painting').room.slotRect(i, d.anchors.clothesline); return { x: r.x + r.w / 2, y: r.y + r.h / 2 }; }, i);
+    await page.evaluate((x) => window.__studio.panTo(x), pos.x);
+    await page.waitForTimeout(900);
+    return page.evaluate((p) => { const d = window.__studio.debug(); return { x: (p.x * d.view.z + d.view.oy * 0 + d.view.ox) * d.S, y: (p.y * d.view.z + d.view.oy) * d.S }; }, pos);
+  };
+  const pos0 = await spotOf(0);
+  await page.mouse.click(pos0.x, pos0.y);
+  await waitMode('painting');
+  st = await state();
+  assert.deepEqual([st.hung, st.book], [10, 1], `${target}: a tapped hung painting moves to the easel`);
+  assert.deepEqual(await page.evaluate(() => { const c = window.__studio.activity('painting')._state().current; return [c.w, c.h]; }), [6, 4], 'it keeps its own size');
+  await page.keyboard.press('Escape');
+  await waitMode('room');
+  // the same from the book: the easel's painting takes its place there
+  await page.evaluate(() => window.__studio.panTo(534));
+  await page.waitForTimeout(1000);
+  const bs3 = await page.evaluate(() => { const d = window.__studio.debug(), b = d.anchors.book; return { x: ((b.x + b.w / 2) * d.view.z + d.view.ox) * d.S, y: ((b.y + b.h / 2) * d.view.z + d.view.oy) * d.S }; });
+  await page.mouse.click(bs3.x, bs3.y);
+  await waitMode('painting'); await page.waitForTimeout(300);
+  const card3 = await page.evaluate(() => { const c = window.__studio.activity('painting')._book().layout.cards[0], d = window.__studio.debug(); return { x: (c.x + c.w / 2) * d.S, y: (c.y + c.h / 2) * d.S }; });
+  await page.mouse.click(card3.x, card3.y);
+  await page.waitForTimeout(300);
+  assert.equal(await page.evaluate(() => window.__studio.activity('painting')._state().inBook), false, `${target}: tapping a card in the book opens it on the easel`);
+  assert.deepEqual([(await state()).hung, (await state()).book], [10, 1], 'the easel painting went into the book in its place');
   assert.deepEqual(errors, [], `${target}: no console errors`);
   await ctx.close();
   console.log(`ok  ${target} full line and the book`);
@@ -274,6 +312,7 @@ for (const target of targets) {
   let s = await st();
   assert.deepEqual([s.w, s.h], [s.natural.w, s.natural.h], `${target}: a fresh painting is the default size`);
   assert.equal(s.tabs, 0, 'no tabs while the paper fills the screen');
+  assert.equal(await page.evaluate(() => window.__studio.activity('painting')._state().peek) >= 3, true, 'edge arrows show instead');
   const startCell = s.view.cell;
   // paint a stroke
   await page.mouse.move(100, 200); await page.mouse.down();

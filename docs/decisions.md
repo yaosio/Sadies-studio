@@ -159,6 +159,16 @@ so) or **proposed** (a default picked, awaiting the user).
   (version stays 2). Reason: no data is ever dropped; old saves load with an empty book.
   Risk: one storage record grows with it (see saving.md "Not built yet").
 
+- [confirmed] Tapping a hung painting (examples included) opens it on the easel to paint on;
+  holding it shows a filling ring below the finger; the easel shows edge arrows at the
+  default zoom so the child knows the paper can be resized (user, 2026-10-05).
+- [proposed] Opening a painting swaps it with the one on the easel (same place on the line or
+  in the book; a bare easel just gives way). Reason: nothing is ever lost. Alternative: ask,
+  or always send the easel painting to the end of the line.
+- [proposed] The edge arrows are small tabs on the screen edges that glide out to the table
+  view when pressed (not a pull that starts at once). Reason: simplest for a child; the real
+  tabs then do the pulling.
+
 ## Open questions
 
 

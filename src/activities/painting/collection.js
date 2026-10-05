@@ -40,3 +40,14 @@ export function splitLoaded(hung, book) {
   const extra = hung.length > MAX_HUNG ? hung.splice(0, hung.length - MAX_HUNG) : [];
   return { hung, book: [...extra, ...book] };
 }
+
+// The child taps painting i of `list` (line or book) to paint on it. It comes to the easel
+// as a copy (so nothing cached about the old one goes stale). The painting that was on the
+// easel takes its place in the list, unless the easel was bare. Returns the new easel
+// painting, or null if there is no painting i.
+export function takeToEasel(list, i, current, easelIsBlank) {
+  const p = list[i];
+  if (!p) return null;
+  if (easelIsBlank) list.splice(i, 1); else list[i] = current;
+  return { w: p.w, h: p.h, cells: p.cells.slice() };
+}

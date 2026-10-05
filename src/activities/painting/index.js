@@ -7,22 +7,23 @@ import { PAPER, PAINT, WOOD_TRIM, SHADOW } from '../../art/palette.js';
 import { encodePainting, decodePainting } from '../../save/codec.js';
 import { pick, easeOut } from '../../engine/util.js';
 import { TOOLS, DEFAULT_TOOL } from './tools.js';
-import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
+import { newPainting, isBlank, naturalGrid, placeGrid, stamp, strokeLine, peekTabs, paintBounds, resizeSides, zoomRange, startCell, clampView, viewAround, edgeTabs } from './grid.js';
 import { fitRect, fitted } from './thumb.js';
 import { layoutTray, inRect } from './tray.js';
 import { mkPot, mkBrush, mkSponge, mkCloth, mkHang, mkUndo, mkClear, mkArrow, drawEdgeTab, mkBack, mkChevron, drawShelf, drawTrayBack, drawHandle } from './art.js';
 import { drawClothesline, slotRect, slotPicture } from './clothesline-art.js';
 import { examplePaintings } from './examples.js';
 import { savePng } from './export.js';
-import { addFinished, lineToBook, bookToLine, remove, splitLoaded, lineIsFull } from './collection.js';
+import { addFinished, lineToBook, bookToLine, remove, splitLoaded, lineIsFull, takeToEasel } from './collection.js';
 import { layoutBook, clampScroll, cardAt } from './book.js';
 import { drawBookPage, paintingCanvas, thumbFor, cardInner } from './book-art.js';
 import { createChooser } from '../../ui/chooser.js';
-import { mkSaveIcon, mkTrashIcon, mkBookIcon } from '../../ui/chooser-art.js';
+import { mkSaveIcon, mkTrashIcon, mkBookIcon, drawHoldRing, holdRingSpot } from '../../ui/chooser-art.js';
 import { PAINTING_LINES as LINES } from './lines.js';
 import { SPARK } from '../../art/effects.js';
 
 const LONG_PRESS_MS = 650;
+const HOLD_RING_DELAY_MS = 150; // a quick tap never shows the ring
 
 const ID = 'painting';
 
@@ -31,6 +32,7 @@ export function createPainting(env) {
   let current = null; // the painting on the easel
   let hung = []; // paintings on the clothesline, oldest first
   let book = []; // paintings in the book, oldest first (see collection.js)
+  let reopened = false; // the easel painting was just taken from the line or book
   let inBook = false, bookScroll = 0, bookPtr = null, lastDest = 'line'; // the book view; where the last hung painting went
   let hangingIndex = -1; // a painting still flying to the line
   let tool = DEFAULT_TOOL, color = 0;
@@ -137,7 +139,8 @@ export function createPainting(env) {
   function open() {
     if (inBook) { active = true; say(book.length ? pick(LINES.bookOpen) : LINES.bookEmpty); return; }
     active = true; trayOpen = false; trayAnim = 0; stroke = null; pan = pinch = grow = null;
-    say(pick(LINES.easel));
+    say(pick(reopened ? LINES.reopen : LINES.easel));
+    reopened = false;
   }
   function close() {
     chooser.close(); bookPtr = null;
@@ -202,6 +205,8 @@ export function createPainting(env) {
     }
   }
 
+  // While the paper fills the screen the real tabs are off screen, so small arrows on the edges show that it can be resized.
+  const peekOn = () => active && !inBook && !pinch && !stroke && !pan && !grow && !anim && tabsOn().length === 0 ? peekTabs(W, H, u, trayAnim < 0.05) : [];
   const tabsOn = () => active && !pinch && !stroke && !pan ? edgeTabs(place, W, H, u, grow !== null) : [];
   const outward = { left: (g, x) => g.x0 - x, right: (g, x) => x - g.x0, top: (g, x, y) => g.y0 - y, bottom: (g, x, y) => y - g.y0 };
   function pointerDown(x, y, opts) {
@@ -218,6 +223,10 @@ export function createPainting(env) {
       return; // never paint through the tray
     }
     if (opts && opts.pan) { anim = null; pan = { x, y, ox: view.ox, oy: view.oy }; trayOpen = false; return; }
+    for (const tab of peekOn()) if (inRect(tab.hit, x, y)) { // an arrow on the screen edge: glide out to where the paper can be pulled
+      trayOpen = false; env.sound.play('tab'); animateTo(tableView());
+      return;
+    }
     for (const tab of tabsOn()) if (inRect(tab.hit, x, y)) { // pull more paper out
       anim = null; trayOpen = false;
       grow = { side: tab.side, base: current, bounds: paintBounds(current), x0: x, y0: y, n: 0, acc: 0 };
@@ -356,7 +365,10 @@ export function createPainting(env) {
     if (chooser.isOpen()) { bookChoice(chooser.up()); return; }
     const b = bookPtr;
     bookPtr = null;
-    if (b && !b.moved && b.i >= 0) { env.sound.play('pop'); say(pick(LINES.art)); }
+    if (b && !b.moved && b.i >= 0) { // a tap: paint on this one
+      const p = takeToEasel(book, b.i, current, isBlank(current));
+      if (p) { putOnEasel(p); env.edit(); }
+    }
   }
   function bookKey(e) {
     if (e.key === 'Escape') { if (chooser.isOpen()) chooser.close(); else leave(); }
@@ -391,6 +403,11 @@ export function createPainting(env) {
     const lay = bookLay();
     bookScroll = clampScroll(lay, bookScroll);
     drawBookPage(c, W, H, u, book, lay, bookScroll);
+    const b = bookPtr;
+    if (b && !b.moved && b.i >= 0 && !chooser.isOpen() && env.now() - b.t0 > HOLD_RING_DELAY_MS) { // a hold is filling in: show it below the finger
+      const r = holdRingSpot(b.x, b.y, W, H, u);
+      drawHoldRing(c, r.x, r.y, u, (env.now() - b.t0) / LONG_PRESS_MS);
+    }
     const door = sprite('back', mkBack);
     c.globalAlpha = 0.8;
     c.drawImage(door, 3 * u, 3 * u, door.width * u, door.height * u);
@@ -406,6 +423,13 @@ export function createPainting(env) {
     hangingIndex = hung.length - 1; lastDest = 'back'; lineDirty = true;
     persist();
     return { img, from: { x: inner.x + t.x, y: inner.y + t.y, w: t.w, h: t.h }, paperFrom: inner, index: hangingIndex, dest: 'line' };
+  }
+
+  // The painting p (from takeToEasel) is now the one on the easel.
+  function putOnEasel(p) {
+    current = p; undoStack.length = 0; paperDirty = true; version++; lineDirty = true; lastTap = null;
+    strokes = 0; usedColors = new Set(); manyShown = false; reopened = true;
+    persist();
   }
 
   /* ---- hanging it up ---- */
@@ -530,6 +554,10 @@ export function createPainting(env) {
     if (!covers) { c.fillStyle = SHADOW; c.fillRect(place.x + 2 * u, place.y + 2 * u, place.w, place.h); }
     c.drawImage(paperCanvas(), place.x, place.y, place.w, place.h);
     if (grow) drawPullCues(c);
+    const arrow = (t) => sprite('arrow' + t.side, () => mkArrow({ top: 'up', bottom: 'down', left: 'left', right: 'right' }[t.side]));
+    c.globalAlpha = 0.9;
+    for (const t of peekOn()) drawEdgeTab(c, t.x, t.y, t.w, t.h, u, arrow(t));
+    c.globalAlpha = 1;
     for (const t of tabsOn()) drawEdgeTab(c, Math.round(t.x), Math.round(t.y), Math.round(t.w), Math.round(t.h), u, sprite('arrow' + t.side, () => mkArrow({ top: 'up', bottom: 'down', left: 'left', right: 'right' }[t.side])));
     drawTray(c, now);
   }
@@ -596,6 +624,13 @@ export function createPainting(env) {
       return { rect, fx: 'poof' };
     },
     hint: () => say(LINES.deleteHint),
+    // Tap on hung painting i: paint on it. It comes to the easel; the easel's painting takes its place on the line.
+    edit(i) {
+      const p = takeToEasel(hung, i, current, isBlank(current));
+      if (!p) return false;
+      putOnEasel(p);
+      return true;
+    },
   };
 
   return {
@@ -607,8 +642,9 @@ export function createPainting(env) {
     snapshot: paperCanvas, // full-size picture of the easel painting
     paperRect: () => place, // where the paper sits on screen when open
     boardFit: (bw, bh) => fitRect(current.w, current.h, bw, bh),
-    _state: () => ({ current, hung, book, inBook, bookScroll, tool, color, trayOpen, trayAnim, natural: naturalGrid(W, H), view, tabs: tabsOn().length }), // for tests
+    _state: () => ({ current, hung, book, inBook, bookScroll, tool, color, trayOpen, trayAnim, natural: naturalGrid(W, H), view, tabs: tabsOn().length, peek: peekOn().length }), // for tests
     _tabs: () => tabsOn(),
+    _peek: () => peekOn(),
     _tray: () => tray,
     _book: () => ({ layout: bookLay(), scroll: bookScroll, chooser: chooser.isOpen(), rects: chooser._rects() }),
   };
