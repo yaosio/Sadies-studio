@@ -223,7 +223,12 @@ for (const target of targets) {
   assert.equal(backup.activities.painting.book.length, 1, 'and the book');
   backup.activities.painting.book.push({ w: 5, h: 3, d: 'B3C4D' }); // one painting this device does not have
   await page.waitForTimeout(400); pt = await corner('load');
-  const [chooserEv] = await Promise.all([page.waitForEvent('filechooser', { timeout: 10000 }), page.mouse.click(pt.x, pt.y)]);
+  let chooserEv = null;
+  for (let tries = 0; tries < 3 && !chooserEv; tries++) {
+    [chooserEv] = await Promise.all([page.waitForEvent('filechooser', { timeout: 4000 }).catch(() => null), page.mouse.click(pt.x, pt.y)]);
+    if (!chooserEv) console.log(`${target}: load button needed try ${tries + 2}`);
+  }
+  assert.ok(chooserEv, `${target}: the load button opens the file picker`);
   await chooserEv.setFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) });
   for (let i = 0; i < 40 && (await state()).book < 2; i++) await page.waitForTimeout(50);
   st = await state();

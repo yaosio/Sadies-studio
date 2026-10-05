@@ -73,7 +73,7 @@ field must also be carried by `buildBackup`/`parseBackup`.
 **Where it goes.** On a phone or tablet (coarse pointer and a browser that can share files)
 the system **share sheet** opens, so the parent picks Drive, Files, messages and so on. Elsewhere
 (desktop) it downloads as before; so does anything where sharing is blocked or fails. Inside an
-artifact the host's own `downloads` save is the fallback. JSON is retried as plain text if the
+artifact the host's own `downloads` save is the fallback. JSON is retried as plain text, then as a .txt file, if the
 share sheet refuses its type. The picture saves (below) use the same path.
 
 Long-press (about 0.65 s) a hung painting in the room (or a card in the book) and

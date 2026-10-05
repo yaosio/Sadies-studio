@@ -23,17 +23,18 @@ export function paintingToCanvas(p) {
 const phoneLike = () => { try { return matchMedia('(pointer: coarse)').matches && !!navigator.canShare; } catch (e) { return false; } };
 
 async function shareFile(blob, filename) {
-  // A browser may refuse some file types in the share sheet: JSON is retried as plain text.
-  const types = blob.type === 'application/json' ? ['application/json', 'text/plain'] : [blob.type];
-  for (const type of types) {
-    const file = new File([blob], filename, { type });
-    if (!navigator.canShare({ files: [file] })) continue;
+  // Share sheets accept only some file types, and which ones differs by phone: JSON is tried as
+  // JSON, then as plain text (same name), then as a .txt file. Any refusal moves on to the next try.
+  const json = blob.type === 'application/json', base = filename.replace(/\.json$/, '');
+  const tries = json ? [['application/json', filename], ['text/plain', filename], ['text/plain', base + '.txt']] : [[blob.type, filename]];
+  for (const [type, name] of tries) {
+    let file;
+    try { file = new File([blob], name, { type }); if (!navigator.canShare({ files: [file] })) continue; } catch (e) { continue; }
     try { await navigator.share({ files: [file] }); return true; } catch (e) {
       if (e && e.name === 'AbortError') return true; // they closed the sheet: that was their answer
-      return false; // blocked or unavailable here: fall back to saving
     }
   }
-  return false;
+  return false; // nothing could be shared here: fall back to saving
 }
 
 export async function saveFile(blob, filename) {
